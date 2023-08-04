@@ -7,6 +7,10 @@
         "stdbool.h": "c",
         "game.h": "c",
         "pthread.h": "c",
-        "functional": "c"
+        "functional": "c",
+        "curses.h": "c",
+        "termio.h": "c",
+        "ioctl.h": "c",
+        "termios.h": "c"
     }
 }

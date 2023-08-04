@@ -55,12 +55,13 @@ bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddre
     
     if (connect(handle->socket, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
-        printf("Connect error:%d.\n", WSAGetLastError());
         #if defined(WINDOWS)
+            printf("Connect error:%d.\n", WSAGetLastError());
             closesocket(handle->socket);
             WSACleanup();
         #elif defined(LINUX)
             // Nothing here
+            printf("Connect error\n");
         #endif
         
         return false;

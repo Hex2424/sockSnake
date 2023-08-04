@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LINUX 
-
 #if defined(WINDOWS)
     #include <windows.h>
-#elif defined(LINUX)
+#else
     #include <pthread.h>
-    #include <unistd.h>
+	#include <termios.h>
+	#include <unistd.h>
+	#include <fcntl.h>
 #endif
 
 #include <time.h>

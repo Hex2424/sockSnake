@@ -15,8 +15,12 @@
 #define NETWORK_SPEED       10
 
 #define SYNC_BYTE           0x55
+#if defined(WINDOWS)
+    #define CHAR_OBSTACKLE      (char) 0xB2
+#elif defined(LINUX)
+    #define CHAR_OBSTACKLE      (char) '#'
+#endif
 
-#define CHAR_OBSTACKLE      (char) 0xB2
 #define CHAR_SNAKE          '0'
 #define CHAR_ENEMY          '@'
 #define CHAR_FOOD           'Q'
@@ -39,11 +43,49 @@ char printBuffer[ARENA_HEIGHT][ARENA_WIDTH];
     #define THREAD_HANDLE pthread_t
     #define CLEAR_COMMAND "clear"
     typedef void* ThreadRet_t;
-    #define PUT_SLEEP(time) sleep(time)
+    #define PUT_SLEEP(time) usleep(time * 1000)
     #define CREATE_THREAD(handle, function) \
         pthread_create(&handle, NULL, function, NULL)
 
     #define KILL_THREAD(handle) pthread_exit(handle)
+
+    int kbhit(void)
+	{
+	  struct termios oldt, newt;
+	  int ch;
+	  int oldf;
+
+	  tcgetattr(STDIN_FILENO, &oldt);
+	  newt = oldt;
+	  newt.c_lflag &= ~(ICANON | ECHO);
+	  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+	  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+	  ch = getchar();
+
+	  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	  fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+	  if(ch != EOF)
+	  {
+		ungetc(ch, stdin);
+		return 1;
+	  }
+
+	  return 0;
+	}
+
+	//http://www.experts-exchange.com/Programming/Languages/C/Q_10119844.html - posted by jos
+	char getch()
+	{
+		char c;
+		system("stty raw");
+		c= getchar();
+		system("stty sane");
+		//printf("%c",c);
+		return(c);
+	}
     
 #endif
 //**********************
@@ -188,8 +230,12 @@ static void handleBlockPainting_()
 
 static void clearScreen_()
 {
-    COORD coord = {0, 0};
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+    #if defined(WINDOWS)
+        COORD coord = {0, 0};
+        SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+    #elif defined(LINUX)
+        printf("%c[%d;%df",0x1B,0,0);
+    #endif
 }
 
 
@@ -300,10 +346,10 @@ static ThreadRet_t handleInput_()
 }
 static void closeThreads_()
 {
-    KILL_THREAD(paintThread);
-    KILL_THREAD(eventsThread);
-    KILL_THREAD(networkingSendThread);
-    KILL_THREAD(networkingReadThread);
+    KILL_THREAD(&paintThread);
+    KILL_THREAD(&eventsThread);
+    KILL_THREAD(&networkingSendThread);
+    KILL_THREAD(&networkingReadThread);
 }
 
 static void handleMovement_()
