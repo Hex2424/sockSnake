@@ -51,7 +51,7 @@ bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddre
     memset(&server, 0, sizeof server);
     server.sin_addr.s_addr = inet_addr(serverAddress);
     server.sin_family = AF_INET;
-    server.sin_port = htons(5000); 
+    server.sin_port = htons((uint16_t) port); 
     
     if (connect(handle->socket, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
