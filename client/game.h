@@ -17,7 +17,7 @@
 #include <time.h>
 #include "networking.h"
 
-typedef uint8_t metric_t;
+typedef int8_t metric_t;
 
 typedef struct Point
 {

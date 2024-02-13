@@ -1,5 +1,6 @@
 #include "game.h"
 #include <ncurses.h>
+#include <stdlib.h>
 
 //**********************
 // CONST VARIABLES
@@ -93,7 +94,7 @@
 static void handleBlockPainting_();
 static Snake_t* addBodySnake_(const Snake_t* snake,const Point_t* newPoint);
 static void paintArena_();
-static void paintBorders_();
+static void paintBorders_(WINDOW* window);
 static void paintSnake_();
 static void paintFood_();
 static void paintEnemySnake_();
@@ -135,6 +136,7 @@ Networking_t networkObject;
 int readed = 0;
 bool rxLock = false;
 WINDOW* arena;
+WINDOW* borderw;
 //**********************
 // IMPLEMENTATION
 
@@ -199,7 +201,13 @@ static void initGame_()
     initscr();
     noecho();
     curs_set(0);
-    arena = newwin(ARENA_HEIGHT, ARENA_WIDTH,0,0);
+    
+    borderw = newwin(ARENA_HEIGHT, ARENA_WIDTH, 0, 0);
+    paintBorders_(borderw);
+    // wgetch(borderw);
+    wrefresh(borderw);
+    
+    arena = derwin(borderw, ARENA_HEIGHT - 2, ARENA_WIDTH - 2, 1, 1);
     // system(CLEAR_COMMAND);
     // setvbuf(stdout, printBuffer, _IOFBF, sizeof(printBuffer));
 }
@@ -214,6 +222,8 @@ static void paintArena_()
 {
     
     // clearScreen_();
+
+    wclear(arena);
     handleBlockPainting_();
     wrefresh(arena);
     // flushBufferPrint_();
@@ -223,12 +233,9 @@ static void paintArena_()
 static void handleBlockPainting_()
 {
     // memset(printBuffer, CHAR_EMPTY, sizeof(printBuffer));
-    wclear(arena);
     paintFood_();
     paintSnake_();
     paintEnemySnake_();
-    paintBorders_();
-    
     // paintFood_();
 }
 
@@ -243,10 +250,10 @@ static void clearScreen_()
 }
 
 
-static void paintBorders_()
+static void paintBorders_(WINDOW* window)
 {
 
-    box(arena, 0, 0);
+    box(window, CHAR_OBSTACKLE, CHAR_OBSTACKLE);
 
     // for(metric_t i = 0; i < ARENA_WIDTH; i++)
     // {
@@ -330,7 +337,7 @@ static ThreadRet_t handleInput_()
     {
         // if (kbhit()) 
         // {
-            switch (getch()) {
+            switch (wgetch(arena)) {
             case 'a':
                 currentDirection = FLAG_LEFT;
                 break;
@@ -368,9 +375,9 @@ static void handleMovement_()
         case FLAG_LEFT:
         {
             snake->point.x -= 1;
-            if(snake->point.x < 2)
+            if(snake->point.x < 0)
             {
-                snake->point.x = (ARENA_WIDTH - 2);
+                snake->point.x = (ARENA_WIDTH - 3);
             }
             
         }break;
@@ -378,16 +385,16 @@ static void handleMovement_()
         case FLAG_DOWN:
         {
             snake->point.y += 1;
-            if(snake->point.y > ARENA_HEIGHT - 2)
+            if(snake->point.y > ARENA_HEIGHT - 3)
             {
-                snake->point.y = 1;
+                snake->point.y = 0;
             }
         }break;
 
         case FLAG_RIGHT:
         {
             snake->point.x += 1;
-            if(snake->point.x > ARENA_WIDTH - 2)
+            if(snake->point.x > ARENA_WIDTH - 3)
             {
                 snake->point.x = 2;
             }
@@ -396,9 +403,9 @@ static void handleMovement_()
         case FLAG_UP:
         {
             snake->point.y -= 1;
-            if(snake->point.y < 1)
+            if(snake->point.y < 0)
             {
-                snake->point.y = (ARENA_HEIGHT- 2);
+                snake->point.y = (ARENA_HEIGHT- 3);
             }
         }break;
 
