@@ -1,2 +1,7 @@
 build
 .vscode
+CMakeFiles
+CMakeCache.txt
+*.cmake
+Makefile
+asciisnake
