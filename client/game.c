@@ -20,7 +20,7 @@
 #if defined(WINDOWS)
     #define CHAR_OBSTACKLE      (char) 0xB2
 #elif defined(LINUX)
-    #define CHAR_OBSTACKLE      (char) '#'
+    #define CHAR_OBSTACKLE      (char) 0
 #endif
 
 #define CHAR_SNAKE          '0'
