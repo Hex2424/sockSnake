@@ -1,4 +1,5 @@
 #include "game.h"
+#include <ncurses.h>
 
 //**********************
 // CONST VARIABLES
@@ -26,8 +27,6 @@
 #define CHAR_FOOD           'Q'
 #define CHAR_EMPTY          ' '
 
-char printBuffer[ARENA_HEIGHT][ARENA_WIDTH];
-
 #if defined(WINDOWS)
     #define THREAD_HANDLE HANDLE
     #define CLEAR_COMMAND "cls"
@@ -49,43 +48,43 @@ char printBuffer[ARENA_HEIGHT][ARENA_WIDTH];
 
     #define KILL_THREAD(handle) pthread_exit(handle)
 
-    int kbhit(void)
-	{
-	  struct termios oldt, newt;
-	  int ch;
-	  int oldf;
+    // int kbhit(void)
+	// {
+	//   struct termios oldt, newt;
+	//   int ch;
+	//   int oldf;
 
-	  tcgetattr(STDIN_FILENO, &oldt);
-	  newt = oldt;
-	  newt.c_lflag &= ~(ICANON | ECHO);
-	  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-	  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-	  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+	//   tcgetattr(STDIN_FILENO, &oldt);
+	//   newt = oldt;
+	//   newt.c_lflag &= ~(ICANON | ECHO);
+	//   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+	//   oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+	//   fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
 
-	  ch = getchar();
+	//   ch = getchar();
 
-	  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-	  fcntl(STDIN_FILENO, F_SETFL, oldf);
+	//   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+	//   fcntl(STDIN_FILENO, F_SETFL, oldf);
 
-	  if(ch != EOF)
-	  {
-		ungetc(ch, stdin);
-		return 1;
-	  }
+	//   if(ch != EOF)
+	//   {
+	// 	ungetc(ch, stdin);
+	// 	return 1;
+	//   }
 
-	  return 0;
-	}
+	//   return 0;
+	// }
 
-	//http://www.experts-exchange.com/Programming/Languages/C/Q_10119844.html - posted by jos
-	char getch()
-	{
-		char c;
-		system("stty raw");
-		c= getchar();
-		system("stty sane");
-		//printf("%c",c);
-		return(c);
-	}
+	// //http://www.experts-exchange.com/Programming/Languages/C/Q_10119844.html - posted by jos
+	// char getch()
+	// {
+	// 	char c;
+	// 	system("stty raw");
+	// 	c= getchar();
+	// 	system("stty sane");
+	// 	//printf("%c",c);
+	// 	return(c);
+	// }
     
 #endif
 //**********************
@@ -109,7 +108,7 @@ static void handleMovement_();
 static void gameOver_();
 static void transformSnake_();
 static ThreadRet_t paintingThread_(void* data);
-static void flushBufferPrint_();
+// static void flushBufferPrint_();
 static ThreadRet_t networkReadLoop_();
 static void closeThreads_();
 static ThreadRet_t networkSendLoop_();
@@ -135,6 +134,7 @@ int8_t currentDirection = 1;
 Networking_t networkObject;
 int readed = 0;
 bool rxLock = false;
+WINDOW* arena;
 //**********************
 // IMPLEMENTATION
 
@@ -147,7 +147,6 @@ int main(int argc, char **argv)
             isOnline = true;
         } 
     }
-
     initGame_();
     gameLoop_();
 }
@@ -197,8 +196,11 @@ static void initGame_()
     {
         networkInit_();
     }
-    
-    system(CLEAR_COMMAND);
+    initscr();
+    noecho();
+    curs_set(0);
+    arena = newwin(ARENA_HEIGHT, ARENA_WIDTH,0,0);
+    // system(CLEAR_COMMAND);
     // setvbuf(stdout, printBuffer, _IOFBF, sizeof(printBuffer));
 }
 
@@ -211,15 +213,17 @@ static void exitGame_()
 static void paintArena_()
 {
     
-    clearScreen_();
+    // clearScreen_();
     handleBlockPainting_();
-    flushBufferPrint_();
+    wrefresh(arena);
+    // flushBufferPrint_();
 }
 
 
 static void handleBlockPainting_()
 {
-    memset(printBuffer, CHAR_EMPTY, sizeof(printBuffer));
+    // memset(printBuffer, CHAR_EMPTY, sizeof(printBuffer));
+    wclear(arena);
     paintFood_();
     paintSnake_();
     paintEnemySnake_();
@@ -242,18 +246,20 @@ static void clearScreen_()
 static void paintBorders_()
 {
 
-    for(metric_t i = 0;i < ARENA_WIDTH; i++)
-    {
-        printBuffer[0][i] = CHAR_OBSTACKLE;
-        printBuffer[ARENA_HEIGHT - 1][i] = CHAR_OBSTACKLE;
-    }
+    box(arena, 0, 0);
+
+    // for(metric_t i = 0; i < ARENA_WIDTH; i++)
+    // {
+    //     printBuffer[0][i] = CHAR_OBSTACKLE;
+    //     printBuffer[ARENA_HEIGHT - 1][i] = CHAR_OBSTACKLE;
+    // }
     
-    for(metric_t i = 0;i < ARENA_HEIGHT; i++)
-    {
-        printBuffer[i][0] = '\n';
-        printBuffer[i][1] = CHAR_OBSTACKLE;
-        printBuffer[i][ARENA_WIDTH - 1] = CHAR_OBSTACKLE;
-    }
+    // for(metric_t i = 0;i < ARENA_HEIGHT; i++)
+    // {
+    //     printBuffer[i][0] = '\n';
+    //     printBuffer[i][1] = CHAR_OBSTACKLE;
+    //     printBuffer[i][ARENA_WIDTH - 1] = CHAR_OBSTACKLE;
+    // }
 
     
 
@@ -264,14 +270,15 @@ static void paintSnake_()
     Snake_t* currentNode = snake;
     while(currentNode != NULL)
     {
-        printBuffer[currentNode->point.y][currentNode->point.x] = CHAR_SNAKE;
+        mvwaddch(arena, currentNode->point.y, currentNode->point.x, CHAR_SNAKE);
+        // printBuffer[currentNode->point.y][currentNode->point.x] = CHAR_SNAKE;
         currentNode = currentNode->snake;
     }
 }
 
 static void paintFood_()
 {
-    printBuffer[foodPos.y][foodPos.x] = CHAR_FOOD;
+    mvwaddch(arena, foodPos.y, foodPos.x, CHAR_FOOD);
 }
 
 static void paintEnemySnake_()
@@ -285,7 +292,7 @@ static void paintEnemySnake_()
     while (*pointStart != SYNC_BYTE && (pointStart < (networkObject.rxBuf + readed)))
     {
         handleDataPacket_(pointStart[0], pointStart[1], pointStart + 2);
-        printBuffer[pointStart[1]][pointStart[0]] = CHAR_ENEMY;
+        mvwaddch(arena, pointStart[1], pointStart[0], CHAR_ENEMY);
         pointStart += 2;
     }
     
@@ -321,8 +328,8 @@ static ThreadRet_t handleInput_()
 {
     while(isGameRunning)
     {
-        if (kbhit()) 
-        {
+        // if (kbhit()) 
+        // {
             switch (getch()) {
             case 'a':
                 currentDirection = FLAG_LEFT;
@@ -340,7 +347,7 @@ static ThreadRet_t handleInput_()
                 isGameRunning = false;
                 break;
             }
-        }
+        
     }
  
 }
@@ -435,10 +442,10 @@ static void transformSnake_()
     }
     
 }
-static void flushBufferPrint_()
-{
-    fwrite(printBuffer, 1, sizeof(printBuffer), stdout);
-}
+// static void flushBufferPrint_()
+// {
+//     fwrite(printBuffer, 1, sizeof(printBuffer), stdout);
+// }
 
 static void networkInit_()
 {   
@@ -453,7 +460,7 @@ static void networkInit_()
         return;
     }
 
-    if(!Networking_connectSocket(&networkObject, "bytewall.org", 4545))
+    if(!Networking_connectSocket(&networkObject, "127.0.0.1", 4546))
     {
         printf("Failed connect socket");
         return;
