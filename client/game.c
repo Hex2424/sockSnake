@@ -28,6 +28,8 @@
 #define CHAR_FOOD           'Q'
 #define CHAR_EMPTY          ' '
 
+#define SOCKET_ERROR        1
+
 #if defined(WINDOWS)
     #define THREAD_HANDLE HANDLE
     #define CLEAR_COMMAND "cls"
@@ -113,7 +115,7 @@ static ThreadRet_t paintingThread_(void* data);
 static ThreadRet_t networkReadLoop_();
 static void closeThreads_();
 static ThreadRet_t networkSendLoop_();
-static void networkInit_();
+static bool networkInit_();
 static void exitGame_();
 static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
 //**********************
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
             isOnline = true;
         } 
     }
+
     initGame_();
     gameLoop_();
 }
@@ -196,7 +199,10 @@ static void initGame_()
     snake->snake = NULL;
     if(isOnline)
     {
-        networkInit_();
+        if(networkInit_() != 0)
+        {
+            exitGame_();
+        }
     }
     initscr();
     noecho();
@@ -204,19 +210,18 @@ static void initGame_()
     
     borderw = newwin(ARENA_HEIGHT, ARENA_WIDTH, 0, 0);
     paintBorders_(borderw);
-    // wgetch(borderw);
     wrefresh(borderw);
-    
     
     arena = derwin(borderw, ARENA_HEIGHT - 2, ARENA_WIDTH - 2, 1, 1);
     
-    // system(CLEAR_COMMAND);
-    // setvbuf(stdout, printBuffer, _IOFBF, sizeof(printBuffer));
 }
 
 static void exitGame_()
 {
     isGameRunning = false;
+    delwin(arena);
+    delwin(borderw);
+    endwin();
     exit(0);
 }
 
@@ -341,21 +346,49 @@ static ThreadRet_t handleInput_()
         // {
             switch (wgetch(borderw)) {
             case 'a':
-                currentDirection = FLAG_LEFT;
-                break;
+            {
+                if(currentDirection != FLAG_RIGHT)
+                {
+                    currentDirection = FLAG_LEFT;
+                }
+
+            }break;
+
             case 's':
-                currentDirection = FLAG_DOWN;
-                break;
+            {
+                if(currentDirection != FLAG_UP)
+                {
+                    currentDirection = FLAG_DOWN;
+                }
+
+            }break;
+                
+            
             case 'd':
-                currentDirection = FLAG_RIGHT;
-                break;
+            {
+                if(currentDirection != FLAG_LEFT)
+                {
+                    currentDirection = FLAG_RIGHT;
+                }
+            }break;
+                
+            
             case 'w':
-                currentDirection = FLAG_UP;
-                break;
+            {
+                if(currentDirection != FLAG_DOWN)
+                {
+                    currentDirection = FLAG_UP;
+                }
+            }break;
+                
+            
             case 'x':
+            {
+
                 isGameRunning = false;
-                break;
-            }
+            }break;
+                
+        }
         
     }
  
@@ -456,23 +489,23 @@ static void transformSnake_()
 //     fwrite(printBuffer, 1, sizeof(printBuffer), stdout);
 // }
 
-static void networkInit_()
+static bool networkInit_()
 {   
     if(!Networking_init())
     {
         printf("Failed init network");
-        return;
+        return SOCKET_ERROR;
     }
     if(!Networking_initializeSocket(&networkObject))
     {
         printf("Failed init socket");
-        return;
+        return SOCKET_ERROR;
     }
 
     if(!Networking_connectSocket(&networkObject, "127.0.0.1", 4546))
     {
         printf("Failed connect socket");
-        return;
+        return SOCKET_ERROR;
     }
     printf("Connected to server...waiting others to join");
     if(Network_read(&networkObject) < 0)
