@@ -207,7 +207,9 @@ static void initGame_()
     // wgetch(borderw);
     wrefresh(borderw);
     
+    
     arena = derwin(borderw, ARENA_HEIGHT - 2, ARENA_WIDTH - 2, 1, 1);
+    
     // system(CLEAR_COMMAND);
     // setvbuf(stdout, printBuffer, _IOFBF, sizeof(printBuffer));
 }
@@ -223,9 +225,9 @@ static void paintArena_()
     
     // clearScreen_();
 
-    wclear(arena);
     handleBlockPainting_();
     wrefresh(arena);
+    werase(arena);
     // flushBufferPrint_();
 }
 
@@ -337,7 +339,7 @@ static ThreadRet_t handleInput_()
     {
         // if (kbhit()) 
         // {
-            switch (wgetch(arena)) {
+            switch (wgetch(borderw)) {
             case 'a':
                 currentDirection = FLAG_LEFT;
                 break;
