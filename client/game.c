@@ -493,26 +493,26 @@ static bool networkInit_()
 {   
     if(!Networking_init())
     {
-        printf("Failed init network");
+        printf("Failed init network\n");
         return SOCKET_ERROR;
     }
     if(!Networking_initializeSocket(&networkObject))
     {
-        printf("Failed init socket");
+        printf("Failed init socket\n");
         return SOCKET_ERROR;
     }
 
     if(!Networking_connectSocket(&networkObject, "127.0.0.1", 4546))
     {
-        printf("Failed connect socket");
+        printf("Failed connect socket\n");
         return SOCKET_ERROR;
     }
-    printf("Connected to server...waiting others to join");
+    printf("Connected to server...waiting others to join\n");
     if(Network_read(&networkObject) < 0)
     {
-        printf("smth wrong on read");
+        printf("smth wrong on read\n");
     } // waiting response from server
-    printf("Starting loop");
+    printf("Starting loop\n");
 }
 
 static ThreadRet_t networkSendLoop_()
