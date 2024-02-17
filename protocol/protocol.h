@@ -14,7 +14,7 @@
 
 typedef enum
 {
-    OK =            0x00,
+    OKAY =            0x00,
     FAIL_PASSW =    0x01,
     LOBBY_FULL =    0x02,
 
@@ -25,11 +25,20 @@ typedef struct
 {
     char password[SERVER_PASS_LENGTH];
     char username[SERVER_USERNAME_LENGTH];
-}LoginPacket_t;
+}LoginRequestPacket_t;
 
-typedef LoginPacket_t* LoginPacketHandle_t;
+typedef struct
+{
+    LoginStatus_e status :  2;
+    uint8_t reserved :      2;
+    uint8_t color_id :      4;
+    char body_ascii :       8;
+}LoginResponsePacket_t;
 
+typedef LoginRequestPacket_t* LoginRequestPacketHandle_t;
+typedef LoginResponsePacket_t* LoginResponsePacketHandle_t;
 
-void Protocol_formatLoginResponse(char* buffer, const uint8_t status, const uint8_t color_id, const char body_ascii);
+void Protocol_encapLoginResponse(char* buffer, const LoginResponsePacketHandle_t packet);
+void Protocol_decapLoginResponse(LoginResponsePacketHandle_t packet, const char* buffer);
 
 #endif

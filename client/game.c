@@ -2,7 +2,11 @@
 #include <ncurses.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include "../server/server.h"
 
 //**********************
 // CONST VARIABLES
@@ -63,14 +67,6 @@
 
 const char TITLE[] = "Ascii Snake v0.1";
 
-const MenuItem_t menuItems[] = 
-{
-    {"SinglePlayer", NULL},
-    {"Start Lobby", NULL},
-    {"Join Lobby", NULL},
-    {"Settings", NULL},
-    {"Exit", NULL}
-};
 
 //**********************
 // PRIVATE METHODS
@@ -89,8 +85,10 @@ static void gameLoop_();
 static bool isEating_();
 static void handleEat_();
 static ThreadRet_t handleInput_();
+static ThreadRet_t runServer();
 static void handleMovement_();
 static void gameOver_();
+static void playSinglePlayer_();
 static void transformSnake_();
 static ThreadRet_t paintingThread_(void* data);
 // static void flushBufferPrint_();
@@ -104,12 +102,21 @@ static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
 //**********************
 // PRIVATE VARIABLES
 
-
+const MenuItem_t menuItems[] = 
+{
+    {"SinglePlayer", playSinglePlayer_},
+    {"Start Lobby", NULL},
+    {"Join Lobby", NULL},
+    {"Settings", NULL},
+    {"Exit", NULL}
+};
 
 THREAD_HANDLE paintThread;
 THREAD_HANDLE eventsThread;
 THREAD_HANDLE networkingSendThread;
 THREAD_HANDLE networkingReadThread;
+
+THREAD_HANDLE serverThread;
 
 bool isOnline = false;
 bool isGameRunning = true;
@@ -129,17 +136,13 @@ WINDOW* borderw;
 
 int main(int argc, char **argv)
 {
+    // Firstly initializing network
+    if(networkInit_() != 0)
+    {
+        exitGame_();
+    }
+    
     processMenuWithSelection_();
-    // for (int i = 0; i < argc; ++i)
-    // {
-    //     if(strcmp(argv[i], "online") == 0)
-    //     {
-    //         isOnline = true;
-    //     } 
-    // }
-
-    initGame_();
-    gameLoop_();
 }
 
 static void processMenuWithSelection_(void)
@@ -203,9 +206,9 @@ static void processMenuWithSelection_(void)
         break;
     }
 
-
-
     endwin();
+    // Calling item function
+    menuItems[selectedItemPos].fun_ptr();
 }
 
 
@@ -250,13 +253,6 @@ static void initGame_()
 
     generateNewPos_(&snake[0].point);
     snake->snake = NULL;
-    if(isOnline)
-    {
-        if(networkInit_() != 0)
-        {
-            exitGame_();
-        }
-    }
 
     initscr();
     noecho();
@@ -453,6 +449,7 @@ static void closeThreads_()
     KILL_THREAD(&eventsThread);
     KILL_THREAD(&networkingSendThread);
     KILL_THREAD(&networkingReadThread);
+    KILL_THREAD(&serverThread);
 }
 
 static void handleMovement_()
@@ -556,18 +553,6 @@ static bool networkInit_()
         return SOCKET_ERROR;
     }
 
-    if(!Networking_connectSocket(&networkObject, "127.0.0.1", 4546))
-    {
-        printf("Failed connect socket\n");
-        return SOCKET_ERROR;
-    }
-    printf("Connected to server...waiting others to join\n");
-    if(Network_read(&networkObject) < 0)
-    {
-        printf("smth wrong on read\n");
-    } // waiting response from server
-    printf("Starting loop\n");
-    
     return 0;
 }
 
@@ -624,4 +609,63 @@ static ThreadRet_t networkReadLoop_()
         PUT_SLEEP(NETWORK_SPEED);
     }
   
+}
+
+static void playSinglePlayer_()
+{
+    char loginResponseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
+
+    const LoginRequestPacket_t loginPacket = 
+    {
+        .password = "123",
+        .username = "Hex24"
+    };
+
+    LoginResponsePacket_t loginResponse;
+
+    CREATE_THREAD(serverThread, runServer);
+    PUT_SLEEP(100); // waitime to initialize server
+
+    if(!Networking_connectSocket(&networkObject, "127.0.0.1", DEFAULT_PORT))
+    {
+        printf("Failed connect server\n");
+        return;
+    }
+
+    // Sending login request
+    if(send(networkObject.socket, (const char*) &loginPacket, sizeof(LoginRequestPacket_t), 0) == sizeof(LoginRequestPacket_t))
+    {
+        printf("Successfuly sent Login request\n");
+    }else
+    {
+        printf("Failed to send login request\n");
+        close(networkObject.socket);
+        return;
+    }
+    // listening login response
+    if(recv(networkObject.socket, loginResponseBuffer, sizeof(loginResponseBuffer), 0) == sizeof(loginResponseBuffer))
+    {
+        Protocol_decapLoginResponse(&loginResponse, loginResponseBuffer);
+        printf("Successfuly received login response with status %u\n", loginResponse.status);
+        
+        close(networkObject.socket);
+    }else
+    {
+        close(networkObject.socket);
+        return;
+    }
+    
+    
+}
+
+static ThreadRet_t runServer()
+{
+    const ServerConfig_t config= 
+    {
+        .serverPassword = "123",
+        .friendlyDeathAllowed = false,
+        .playerCap = 1   
+    };
+
+    Server_begin(&config);
 }

@@ -7,6 +7,7 @@
 #include "string.h"
 #include "../protocol/protocol.h"
 
+#define DEFAULT_PORT                2442
 
 
 typedef struct

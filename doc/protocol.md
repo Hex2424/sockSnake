@@ -12,9 +12,9 @@
 | Field     | start bit     | length (bits) | description                            |
 |-----------| ---------     | ------------- | ------------                           |
 | status    | 0             | 2             | 0 = OK, 1 = FAIL_PASSW, 2 = LOBBY_FULL |
-| reserved  | 6             | 2             |                                        |
-| color_id  | 2             | 4             | color id of snake body                 |
-| body_ascii| 6             | 8             | printable character as snake body      |
+| reserved  | 2             | 2             |                                        |
+| color_id  | 4             | 4             | color id of snake body                 |
+| body_ascii| 8             | 8             | printable character as snake body      |
 
 
 # Server -> Client configs packet

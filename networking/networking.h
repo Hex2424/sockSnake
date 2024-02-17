@@ -1,7 +1,7 @@
 #ifndef NETWORKING
 #define NETWORKING
 
-#define LINUX
+// #define LINUX
 
 #if defined(WINDOWS)
     #include <conio.h>
@@ -27,8 +27,8 @@
 
 struct Networking
 {
-    // char rxBuf[RX_BUFFER_SIZE];
-    // char txBuf[TX_BUFFER_SIZE];
+    char rxBuf[RX_BUFFER_SIZE];
+    char txBuf[TX_BUFFER_SIZE];
     #if defined(WINDOWS)
         SOCKET socket;
     #elif defined(LINUX)
