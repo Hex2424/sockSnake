@@ -1,17 +1,24 @@
 
 #include "server.h"
+#include <cstdlib>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <assert.h>
 
-#define DEFAULT_PORT 2442
+#define DEFAULT_PORT                2442
 
+static bool validateLoginRecv_(const int socketfd, LoginPacket_t* loginPacket, const char* serverPassword);
+static bool sendLoginResponse(const int socketfd, const bool status, const uint8_t color_id, const char body_ascii);
 
 bool Server_begin(const ServerConfig_t* config)
 {
     Networking_t networkObject;
+    int* socketDescriptors;
+
     struct sockaddr_in server;
     socklen_t addresslen = sizeof(server); 
     
@@ -49,33 +56,82 @@ bool Server_begin(const ServerConfig_t* config)
             return SOCKET_ERROR;
         }
 
-        // Catching and validating connections
-        while (true)
+        socketDescriptors = malloc(sizeof(int) * config->playerCap);
+        
+        if(socketDescriptors == NULL)
         {
+            printf("Failed malloc of socket descriptor list %u", config->playerCap);
+            return false;
+        }
+        // Stage of accepting logins
+        for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
+        {
+            LoginPacket_t loginPacket;
+            char responseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
+
             int new_socket = accept(networkObject.socket, (struct sockaddr*)&server, &addresslen);
             if (new_socket < 0)
             {
                 printf("Failed accept server socket\n");
-                return SOCKET_ERROR;
+                continue;
             }
 
+            if(validateLoginRecv_(new_socket, &loginPacket, config->serverPassword))
+            {
+                Protocol_formatLoginResponse(responseBuffer, OK, 0, '0');
+                if(send(new_socket, responseBuffer, sizeof(responseBuffer), 0) >= 0)
+                {
+                    printf("Successful logged player: %s", loginPacket.username);
+                    socketDescriptors[playerId] = new_socket;
+                    playerId++;
+                }else 
+                {
+                    continue;
+                }
+            }else
+            {
+                // Failed login, need continue
+                Protocol_formatLoginResponse(responseBuffer, FAIL_PASSW, 0, ' ');
+                send(new_socket, responseBuffer, sizeof(responseBuffer), 0);
+                continue;
+            }
+            
         }
+ 
      
     #elif defined(WINDOWS)
         // NOTHING FOR NOW
     #endif
 
 
-    // Stage of accepting logins
-    for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
-    {
-        
-    }
+    
     
 }
 
-
-bool Server_close(void)
+static bool validateLoginRecv_(const int socketfd, LoginPacket_t* loginPacket, const char* serverPassword)
 {
-    
+    // reading password
+    if(recv(socketfd, loginPacket, sizeof(LoginPacket_t), 0) < 0)
+    {
+        printf("Read failure of socket");
+        return false;
+    }
+
+    if(strstr(loginPacket->password, serverPassword) != NULL)
+    {
+        printf("Password is incorrect");
+        return false;
+    }
+
+    return true;
 }
+
+static inline bool sendLoginResponse_(const int socketfd, const char* responseBuffer)
+{
+    return 
+}
+
+// bool Server_close(void)
+// {
+    
+// }

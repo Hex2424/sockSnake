@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include "../networking/networking.h"
 #include "string.h"
+#include "../protocol/protocol.h"
+
 
 
 typedef struct
