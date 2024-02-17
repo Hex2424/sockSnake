@@ -1,6 +1,5 @@
 
 #include "server.h"
-#include <cstdlib>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,11 +7,12 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <assert.h>
+#include <unistd.h>
 
 #define DEFAULT_PORT                2442
 
 static bool validateLoginRecv_(const int socketfd, LoginPacket_t* loginPacket, const char* serverPassword);
-static bool sendLoginResponse(const int socketfd, const bool status, const uint8_t color_id, const char body_ascii);
+
 
 bool Server_begin(const ServerConfig_t* config)
 {
@@ -86,6 +86,7 @@ bool Server_begin(const ServerConfig_t* config)
                     playerId++;
                 }else 
                 {
+                    close(new_socket); // closing connection
                     continue;
                 }
             }else
@@ -93,6 +94,7 @@ bool Server_begin(const ServerConfig_t* config)
                 // Failed login, need continue
                 Protocol_formatLoginResponse(responseBuffer, FAIL_PASSW, 0, ' ');
                 send(new_socket, responseBuffer, sizeof(responseBuffer), 0);
+                close(new_socket); // closing connection
                 continue;
             }
             
@@ -126,10 +128,6 @@ static bool validateLoginRecv_(const int socketfd, LoginPacket_t* loginPacket, c
     return true;
 }
 
-static inline bool sendLoginResponse_(const int socketfd, const char* responseBuffer)
-{
-    return 
-}
 
 // bool Server_close(void)
 // {
