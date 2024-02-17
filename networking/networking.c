@@ -5,7 +5,7 @@ bool Networking_init()
 {
     #if defined(WINDOWS)
         WSADATA wsa;
-        printf("\nInitialising Winsock...");
+        printf("\nInitialising Winsock...\n");
         if (WSAStartup(MAKEWORD(2,2), &wsa) != 0)
         {
             printf("Failed. Error Code : %d.\n", WSAGetLastError());
@@ -67,7 +67,7 @@ bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddre
         return false;
     }
 
-    printf("Succesfuly connected socket");
+    printf("Succesfuly connected socket\n");
 
     return true;
 

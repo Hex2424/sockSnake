@@ -23,10 +23,12 @@
 #define RX_BUFFER_SIZE 2048
 #define TX_BUFFER_SIZE 1024
 
+#define SOCKET_ERROR        1
+
 struct Networking
 {
-    char rxBuf[RX_BUFFER_SIZE];
-    char txBuf[TX_BUFFER_SIZE];
+    // char rxBuf[RX_BUFFER_SIZE];
+    // char txBuf[TX_BUFFER_SIZE];
     #if defined(WINDOWS)
         SOCKET socket;
     #elif defined(LINUX)
