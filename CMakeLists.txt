@@ -14,6 +14,8 @@ set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 add_executable(asciisnake 
     client/game.c 
-    networking/networking.c)
+    networking/networking.c
+    protocol/protocol.c
+    server/server.c)
 
 # set_property(TARGET asciisnake PROPERTY CXX_STANDARD 17)
