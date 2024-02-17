@@ -1,12 +1,23 @@
 #include "game.h"
 #include <ncurses.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 //**********************
 // CONST VARIABLES
 
+// ARENA
 #define ARENA_WIDTH         30
 #define ARENA_HEIGHT        20
+
+// MENU
+#define MENU_WINDOW_WIDTH   30
+#define MENU_ITEM_COUNT     (sizeof(menuItems) / sizeof(MenuItem_t))
+#define MENU_WINDOW_HEIGHT  (MENU_ITEM_COUNT + 5)
+#define ITEMS_OFFSET_COL    3
+
+
 #define FLAG_LEFT           1
 #define FLAG_DOWN           2
 #define FLAG_RIGHT          3
@@ -50,46 +61,19 @@
         pthread_create(&handle, NULL, function, NULL)
 
     #define KILL_THREAD(handle) pthread_exit(handle)
-
-    // int kbhit(void)
-	// {
-	//   struct termios oldt, newt;
-	//   int ch;
-	//   int oldf;
-
-	//   tcgetattr(STDIN_FILENO, &oldt);
-	//   newt = oldt;
-	//   newt.c_lflag &= ~(ICANON | ECHO);
-	//   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
-	//   oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
-	//   fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
-
-	//   ch = getchar();
-
-	//   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
-	//   fcntl(STDIN_FILENO, F_SETFL, oldf);
-
-	//   if(ch != EOF)
-	//   {
-	// 	ungetc(ch, stdin);
-	// 	return 1;
-	//   }
-
-	//   return 0;
-	// }
-
-	// //http://www.experts-exchange.com/Programming/Languages/C/Q_10119844.html - posted by jos
-	// char getch()
-	// {
-	// 	char c;
-	// 	system("stty raw");
-	// 	c= getchar();
-	// 	system("stty sane");
-	// 	//printf("%c",c);
-	// 	return(c);
-	// }
-    
 #endif
+
+const char TITLE[] = "Ascii Snake v0.1";
+
+const MenuItem_t menuItems[] = 
+{
+    {"SinglePlayer", NULL},
+    {"Start Lobby", NULL},
+    {"Join Lobby", NULL},
+    {"Settings", NULL},
+    {"Exit", NULL}
+};
+
 //**********************
 // PRIVATE METHODS
 
@@ -117,6 +101,7 @@ static void closeThreads_();
 static ThreadRet_t networkSendLoop_();
 static bool networkInit_();
 static void exitGame_();
+static void processMenuWithSelection_();
 static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
 //**********************
 // PRIVATE VARIABLES
@@ -139,22 +124,92 @@ int readed = 0;
 bool rxLock = false;
 WINDOW* arena;
 WINDOW* borderw;
+
+
 //**********************
 // IMPLEMENTATION
 
 int main(int argc, char **argv)
 {
-    for (int i = 0; i < argc; ++i)
-    {
-        if(strcmp(argv[i], "online") == 0)
-        {
-            isOnline = true;
-        } 
-    }
+    processMenuWithSelection_();
+    // for (int i = 0; i < argc; ++i)
+    // {
+    //     if(strcmp(argv[i], "online") == 0)
+    //     {
+    //         isOnline = true;
+    //     } 
+    // }
 
     initGame_();
     gameLoop_();
 }
+
+static void processMenuWithSelection_(void)
+{
+    WINDOW* menuWindow;
+    uint8_t selectedItemPos = 0;
+    initscr();
+    noecho();
+    curs_set(0);
+    menuWindow = newwin(MENU_WINDOW_HEIGHT, MENU_WINDOW_WIDTH, 0, 0);
+    box(menuWindow, 0, 0);
+    keypad(menuWindow, true);
+
+    mvwaddstr(menuWindow, 1, (MENU_WINDOW_WIDTH - (sizeof(TITLE) - 1)) / 2, TITLE);
+
+
+    for(uint8_t itemPos = 0; itemPos < MENU_ITEM_COUNT; itemPos++)
+    {
+        mvwaddstr(menuWindow, itemPos + ITEMS_OFFSET_COL, 3, menuItems[itemPos].itemName);
+    }
+
+    while (true) 
+    {
+        
+        mvwaddch(menuWindow, selectedItemPos + 3, 1, '>');
+        // mvwaddstr(menuWindow, selectedItemPos + 3, 3, menuItems[selectedItemPos].itemName);
+        
+        wrefresh(menuWindow);
+        switch (wgetch(menuWindow)) 
+        {
+            case 'w': 
+            case KEY_UP:
+            {
+                mvwaddch(menuWindow, selectedItemPos + ITEMS_OFFSET_COL, 1, ' ');
+                if(selectedItemPos == 0)
+                {
+                    selectedItemPos = MENU_ITEM_COUNT - 1;
+                }else
+                {
+                    selectedItemPos--;
+                }
+
+            } continue;
+
+            case 's':
+            case KEY_DOWN:
+            {
+                mvwaddch(menuWindow, selectedItemPos + ITEMS_OFFSET_COL, 1, ' ');
+                selectedItemPos++;
+                if(selectedItemPos == MENU_ITEM_COUNT)
+                {
+                    selectedItemPos = 0;
+                }
+            } continue;
+
+            case KEY_ENTER:
+            case ' ': 
+            break;
+
+        }
+        break;
+    }
+
+    
+
+    endwin();
+}
+
 
 static void gameLoop_()
 {
@@ -204,6 +259,7 @@ static void initGame_()
             exitGame_();
         }
     }
+
     initscr();
     noecho();
     curs_set(0);
@@ -513,6 +569,8 @@ static bool networkInit_()
         printf("smth wrong on read\n");
     } // waiting response from server
     printf("Starting loop\n");
+    
+    return 0;
 }
 
 static ThreadRet_t networkSendLoop_()

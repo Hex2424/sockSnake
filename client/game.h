@@ -19,7 +19,7 @@
 
 typedef int8_t metric_t;
 
-typedef struct Point
+typedef struct
 {
     metric_t x;
     metric_t y;
@@ -30,6 +30,13 @@ struct Snake
     struct Snake* snake;
     Point_t point;
 };
+
+typedef struct {
+    char* itemName;
+    void (*fun_ptr)(void);
+}MenuItem_t;
+
+
 typedef struct Snake Snake_t;
 
 #endif
