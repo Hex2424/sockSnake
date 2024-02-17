@@ -15,7 +15,7 @@
 #endif
 
 #include <time.h>
-#include "networking.h"
+#include "../networking/networking.h"
 
 typedef int8_t metric_t;
 

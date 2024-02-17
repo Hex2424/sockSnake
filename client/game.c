@@ -39,8 +39,6 @@
 #define CHAR_FOOD           'Q'
 #define CHAR_EMPTY          ' '
 
-#define SOCKET_ERROR        1
-
 #if defined(WINDOWS)
     #define THREAD_HANDLE HANDLE
     #define CLEAR_COMMAND "cls"
@@ -205,7 +203,7 @@ static void processMenuWithSelection_(void)
         break;
     }
 
-    
+
 
     endwin();
 }
