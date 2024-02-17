@@ -15,6 +15,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <arpa/inet.h>
+
 
 #define RX_BUFFER_SIZE 2048
 #define TX_BUFFER_SIZE 1024
