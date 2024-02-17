@@ -8,6 +8,8 @@ ELSE()
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lncurses")
 ENDIF()
 
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+
 add_executable(asciisnake 
     client/game.c 
     client/networking.c)
