@@ -59,8 +59,8 @@
     #define CLEAR_COMMAND "clear"
     typedef void* ThreadRet_t;
     #define PUT_SLEEP(time) usleep(time * 1000)
-    #define CREATE_THREAD(handle, function) \
-        pthread_create(&handle, NULL, function, NULL)
+    #define CREATE_THREAD(handle, function, argument) \
+        pthread_create(&handle, NULL, function, argument)
 
     #define KILL_THREAD(handle) pthread_exit(handle)
 #endif
@@ -85,7 +85,7 @@ static void gameLoop_();
 static bool isEating_();
 static void handleEat_();
 static ThreadRet_t handleInput_();
-static ThreadRet_t runServer();
+static ThreadRet_t runServer(void* args);
 static void handleMovement_();
 static void gameOver_();
 static void playSinglePlayer_();
@@ -99,7 +99,7 @@ static bool networkInit_();
 static void exitGame_();
 static void processMenuWithSelection_();
 static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
-static void playInServer_(const bool hostServer, const GameSettingsHandle_t settings);
+static void playInServer_(const GameSettingsHandle_t settings);
 //**********************
 // PRIVATE VARIABLES
 
@@ -215,13 +215,13 @@ static void processMenuWithSelection_(void)
 
 static void gameLoop_()
 {
-    CREATE_THREAD(paintThread, paintingThread_);
-    CREATE_THREAD(eventsThread, handleInput_);
+    CREATE_THREAD(paintThread, paintingThread_, NULL);
+    CREATE_THREAD(eventsThread, handleInput_, NULL);
 
     if(isOnline)
     {
-        CREATE_THREAD(networkingSendThread, networkSendLoop_);
-        CREATE_THREAD(networkingReadThread, networkReadLoop_);
+        CREATE_THREAD(networkingSendThread, networkSendLoop_, NULL);
+        CREATE_THREAD(networkingReadThread, networkReadLoop_, NULL);
     }
 
     while (isGameRunning)
@@ -614,27 +614,41 @@ static ThreadRet_t networkReadLoop_()
 
 static void playSinglePlayer_()
 {
+    const ServerConfig_t serverSettings = 
+    {
+        .serverPassword = "123",
+        .serverPort = DEFAULT_PORT,
+        .friendlyDeathAllowed = false,
+        .playerCap = 1
+    };
+
     GameSettings_t settings = 
     {
         .loginSettings = 
+        {   
+            .loginPassword = "123",
+            .loginUsername = "Hex24"
+        },
+        .playerConfig = 
         {
-            .serverPassword = "123",
-            .username = "Hex24"
-        }
+            .snake_ascii = '0',
+            .snake_color_id = COLOR_BLUE
+        },
+        .serverSettings = &serverSettings
     };
     
-    playInServer_(true, &settings);
+    playInServer_(&settings);
 }
 
-static void playInServer_(const bool hostServer, const GameSettingsHandle_t settings)
+static void playInServer_(const GameSettingsHandle_t settings)
 {
     char loginResponseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
 
     LoginResponsePacket_t loginResponse;
 
-    if(hostServer)
+    if(settings->serverSettings != NULL)
     {
-        CREATE_THREAD(serverThread, runServer);
+        CREATE_THREAD(serverThread, runServer, (void*) settings->serverSettings);
         PUT_SLEEP(10); // waitime to initialize server
     }
 
@@ -681,14 +695,7 @@ static void playInServer_(const bool hostServer, const GameSettingsHandle_t sett
 }
 
 
-static ThreadRet_t runServer()
+static ThreadRet_t runServer(void* args)
 {
-    const ServerConfig_t config= 
-    {
-        .serverPassword = "123",
-        .friendlyDeathAllowed = false,
-        .playerCap = 1   
-    };
-
-    Server_begin(&config);
+    Server_begin((const ServerConfig_t*) args);
 }

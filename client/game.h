@@ -17,6 +17,7 @@
 #include <time.h>
 #include "../networking/networking.h"
 #include "../protocol/protocol.h"
+#include "../server/server.h"
 
 typedef int8_t metric_t;
 
@@ -37,12 +38,17 @@ typedef struct {
     void (*fun_ptr)(void);
 }MenuItem_t;
 
+typedef struct 
+{
+    uint8_t snake_color_id :     4;
+    char snake_ascii :           8;
+}PlayerConfig_t;
 
 typedef struct
 {
     LoginRequestPacket_t loginSettings;
-    
-
+    const ServerConfig_t* serverSettings;
+    PlayerConfig_t playerConfig;
 }GameSettings_t;
 
 typedef struct Snake Snake_t;

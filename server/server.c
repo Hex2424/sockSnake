@@ -22,7 +22,7 @@ bool Server_begin(const ServerConfig_t* config)
     
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons((uint16_t) DEFAULT_PORT);
+    server.sin_port = htons(config->serverPort);
     assert(config->serverPassword);
     assert(config->playerCap != 0);
     
@@ -108,7 +108,7 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
 
         if(send(socketfd, responseBuffer, sizeof(responseBuffer), 0) >= 0)
         {
-            printf("Successful logged player: %s\n", loginPacket.username);
+            printf("Successful logged player: %s\n", loginPacket.loginUsername);
             return true;
         }else 
         {
@@ -139,7 +139,7 @@ static bool validateLoginRecv_(const int socketfd, LoginRequestPacketHandle_t lo
         return false;
     }
 
-    if(strstr(loginPacket->serverPassword, serverPassword) == NULL)
+    if(strstr(loginPacket->loginPassword, serverPassword) == NULL)
     {
         printf("Password is incorrect\n");
         return false;

@@ -13,6 +13,8 @@
 typedef struct
 {
     char* serverPassword;
+    uint16_t serverPort;
+    
     bool friendlyDeathAllowed;
     uint8_t playerCap;
 
