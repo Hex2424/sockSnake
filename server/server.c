@@ -139,7 +139,7 @@ static bool validateLoginRecv_(const int socketfd, LoginRequestPacketHandle_t lo
         return false;
     }
 
-    if(strstr(loginPacket->password, serverPassword) == NULL)
+    if(strstr(loginPacket->serverPassword, serverPassword) == NULL)
     {
         printf("Password is incorrect\n");
         return false;

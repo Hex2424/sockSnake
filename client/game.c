@@ -99,6 +99,7 @@ static bool networkInit_();
 static void exitGame_();
 static void processMenuWithSelection_();
 static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
+static void playInServer_(const bool hostServer, const GameSettingsHandle_t settings);
 //**********************
 // PRIVATE VARIABLES
 
@@ -613,18 +614,29 @@ static ThreadRet_t networkReadLoop_()
 
 static void playSinglePlayer_()
 {
-    char loginResponseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
-
-    const LoginRequestPacket_t loginPacket = 
+    GameSettings_t settings = 
     {
-        .password = "123",
-        .username = "Hex24"
+        .loginSettings = 
+        {
+            .serverPassword = "123",
+            .username = "Hex24"
+        }
     };
+    
+    playInServer_(true, &settings);
+}
+
+static void playInServer_(const bool hostServer, const GameSettingsHandle_t settings)
+{
+    char loginResponseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
 
     LoginResponsePacket_t loginResponse;
 
-    CREATE_THREAD(serverThread, runServer);
-    PUT_SLEEP(10); // waitime to initialize server
+    if(hostServer)
+    {
+        CREATE_THREAD(serverThread, runServer);
+        PUT_SLEEP(10); // waitime to initialize server
+    }
 
     if(!Networking_connectSocket(&networkObject, "127.0.0.1", DEFAULT_PORT))
     {
@@ -633,7 +645,7 @@ static void playSinglePlayer_()
     }
 
     // Sending login request
-    if(send(networkObject.socket, (const char*) &loginPacket, sizeof(LoginRequestPacket_t), 0) == sizeof(LoginRequestPacket_t))
+    if(send(networkObject.socket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t), 0) == sizeof(LoginRequestPacket_t))
     {
         printf("Successfuly sent Login request\n");
     }else
@@ -666,8 +678,8 @@ static void playSinglePlayer_()
     }
 
     return;
-    
 }
+
 
 static ThreadRet_t runServer()
 {

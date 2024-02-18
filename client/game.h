@@ -16,6 +16,7 @@
 
 #include <time.h>
 #include "../networking/networking.h"
+#include "../protocol/protocol.h"
 
 typedef int8_t metric_t;
 
@@ -37,6 +38,13 @@ typedef struct {
 }MenuItem_t;
 
 
-typedef struct Snake Snake_t;
+typedef struct
+{
+    LoginRequestPacket_t loginSettings;
+    
 
+}GameSettings_t;
+
+typedef struct Snake Snake_t;
+typedef GameSettings_t* GameSettingsHandle_t;
 #endif
