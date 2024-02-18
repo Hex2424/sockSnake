@@ -11,7 +11,7 @@
 
 
 static bool validateLoginRecv_(const int socketfd, LoginRequestPacket_t* loginPacket, const char* serverPassword);
-
+static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassword);
 
 bool Server_begin(const ServerConfig_t* config)
 {
@@ -62,53 +62,71 @@ bool Server_begin(const ServerConfig_t* config)
         // Stage of accepting logins
         for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
         {
-            LoginRequestPacket_t loginPacket;
-            LoginResponsePacket_t response;
-            response.color_id = 0;
-            response.body_ascii = '0';
-
-            char responseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
-
             int new_socket = accept(networkObject.socket, (struct sockaddr*)&server, &addresslen);
-            if (new_socket < 0)
+            
+            // handling player password validation
+            if(isPlayerValidOnSocket_(new_socket, config->serverPassword))
             {
-                printf("Failed accept server socket\n");
-                continue;
-            }
-
-            if(validateLoginRecv_(new_socket, &loginPacket, config->serverPassword))
-            {
-                response.status = OKAY;
-                Protocol_encapLoginResponse(responseBuffer, &response);
-                if(send(new_socket, responseBuffer, sizeof(responseBuffer), 0) >= 0)
-                {
-                    printf("Successful logged player: %s\n", loginPacket.username);
-                    socketDescriptors[playerId] = new_socket;
-                    playerId++;
-                }else 
-                {
-                    close(new_socket); // closing connection
-                    continue;
-                }
+                socketDescriptors[playerId] = new_socket;
+                playerId++;
             }else
             {
-                // Failed login, need continue
-                response.status = FAIL_PASSW;
-                Protocol_encapLoginResponse(responseBuffer, &response);
-                send(new_socket, responseBuffer, sizeof(responseBuffer), 0);
-                close(new_socket); // closing connection
-                continue;
+                close(new_socket);
             }
             
         }
+
+        // Successfuly found all players
+        // Continue to configuration page
+        
  
      
     #elif defined(WINDOWS)
         // NOTHING FOR NOW
     #endif
+}
+
+static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassword)
+{
+    LoginRequestPacket_t loginPacket;
+    LoginResponsePacket_t response;
+    char responseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
+
+    response.color_id = 0;
+    response.body_ascii = '0';
+
+    if (socketfd < 0)
+    {
+        printf("Failed accept server socket\n");
+        return false;
+    }
+
+    if(validateLoginRecv_(socketfd, &loginPacket, validityPassword))
+    {
+        response.status = OKAY;
+        Protocol_encapLoginResponse(responseBuffer, &response);
+
+        if(send(socketfd, responseBuffer, sizeof(responseBuffer), 0) >= 0)
+        {
+            printf("Successful logged player: %s\n", loginPacket.username);
+            return true;
+        }else 
+        {
+            return false;
+        }
+    }else
+    {
+        // Failed login, need continue
+        response.status = FAIL_PASSW;
+        Protocol_encapLoginResponse(responseBuffer, &response);
+        send(socketfd, responseBuffer, sizeof(responseBuffer), 0);
+        return false;
+    }
+}
 
 
-    
+static void handleConfigurations_()
+{
     
 }
 

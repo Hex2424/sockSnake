@@ -1,7 +1,7 @@
 #ifndef NETWORKING
 #define NETWORKING
 
-// #define LINUX
+#define LINUX
 
 #if defined(WINDOWS)
     #include <conio.h>

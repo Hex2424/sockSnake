@@ -624,7 +624,7 @@ static void playSinglePlayer_()
     LoginResponsePacket_t loginResponse;
 
     CREATE_THREAD(serverThread, runServer);
-    PUT_SLEEP(100); // waitime to initialize server
+    PUT_SLEEP(10); // waitime to initialize server
 
     if(!Networking_connectSocket(&networkObject, "127.0.0.1", DEFAULT_PORT))
     {
@@ -642,19 +642,30 @@ static void playSinglePlayer_()
         close(networkObject.socket);
         return;
     }
+
     // listening login response
     if(recv(networkObject.socket, loginResponseBuffer, sizeof(loginResponseBuffer), 0) == sizeof(loginResponseBuffer))
     {
+
         Protocol_decapLoginResponse(&loginResponse, loginResponseBuffer);
-        printf("Successfuly received login response with status %u\n", loginResponse.status);
-        
+       
+        printf("Successfuly received login response with status %d\n", loginResponse.status);
+       
+        if(loginResponse.status == 0)
+        {
+
+        }else 
+        {
+            close(networkObject.socket);
+        }
+
         close(networkObject.socket);
     }else
     {
         close(networkObject.socket);
-        return;
     }
-    
+
+    return;
     
 }
 
