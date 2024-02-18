@@ -626,8 +626,8 @@ static void playSinglePlayer_()
     {
         .loginSettings = 
         {   
-            .loginPassword = "123",
-            .loginUsername = "Hex24"
+            .loginPassword = "1234",
+            .loginUsername = "Hex244"
         },
         .playerConfig = 
         {
