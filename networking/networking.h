@@ -25,25 +25,22 @@
 
 #define SOCKET_ERROR        1
 
-struct Networking
-{
-    char rxBuf[RX_BUFFER_SIZE];
-    char txBuf[TX_BUFFER_SIZE];
-    #if defined(WINDOWS)
-        SOCKET socket;
-    #elif defined(LINUX)
-        int socket;
-    #endif
-};
+#if defined(WINDOWS)
+    typedef SOCKET Socket_t;
+#elif defined(LINUX)
+    typedef int Socket_t;
+#endif
 
-typedef struct Networking Networking_t;
-typedef Networking_t* NetworkingHandle_t;
+typedef struct sockaddr_in SockAddr_t;
+typedef SockAddr_t* SockAddrHandle_t;
 
-bool Networking_init();
-bool Networking_initializeSocket(NetworkingHandle_t handle);
-bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddress, const uint32_t port);
-int Network_read(NetworkingHandle_t handle);
-int Network_write(NetworkingHandle_t handle, size_t lengthToWrite);
-int Network_close(NetworkingHandle_t handle);
-int Network_readN(NetworkingHandle_t handle, const int n);
+bool Socket_init(void);
+Socket_t Socket_createSocket(void);
+bool Socket_bind(const Socket_t socket, const SockAddrHandle_t sockAddr);
+bool Socket_listen(const Socket_t listenSocket, const int backlogCount);
+Socket_t Socket_acceptSocket(const Socket_t sockenForAccepting, const SockAddrHandle_t sockAddr);
+bool Socket_connectSocket(const Socket_t socket, const SockAddrHandle_t sockAddr);
+bool Socket_readFullPacket(const Socket_t socket, char* packetBuffer, const uint8_t packetLength);
+bool Socket_sendFullPacket(const Socket_t socket, const void* packetBuffer, const uint8_t packetLength);
+bool Socket_close(const Socket_t socket);
 #endif

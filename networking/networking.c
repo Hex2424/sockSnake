@@ -1,9 +1,15 @@
 #include "networking.h"
 #include "../logger/logger.h"
+#include <assert.h>
+#include <netinet/in.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 const static char* TAG = "NETWORKING"; 
 
-bool Networking_init()
+bool Socket_init(void)
 {
     #if defined(WINDOWS)
         WSADATA wsa;
@@ -18,84 +24,110 @@ bool Networking_init()
     return true;
 }
 
-bool Networking_initializeSocket(NetworkingHandle_t handle)
+Socket_t Socket_createSocket(void)
 {
+    Socket_t initedSocket;
     #if defined(WINDOWS)
-
-        if((handle->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
+        initedSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if(initedSocket == INVALID_SOCKET)
         {
-            WSACleanup();
-            return false;
+            initedSocket = -1;
         }
 
     #elif defined(LINUX)
+        initedSocket = socket(AF_INET, SOCK_STREAM, 0);
+    #endif
+    
+    return initedSocket;
+}
 
-        if((handle->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+bool Socket_bind(const Socket_t socket, const SockAddrHandle_t sockAddr)
+{
+    #if defined(WINDOWS)
+        return bind(socket, (SOCKADDR *) sockAddr, sizeof(SockAddr_t)) != SOCKET_ERROR;
+    #elif defined(LINUX)
+        return bind(socket, (const struct sockaddr*) sockAddr, (socklen_t) sizeof(SockAddr_t)) >= 0;
+    #endif
+}
+
+bool Socket_listen(const Socket_t listenSocket, const int backlogCount)
+{
+    #if defined(WINDOWS)
+        return listen(listenSocket, SOMAXCONN) != SOCKET_ERROR;
+    #elif defined(LINUX)
+        return listen(listenSocket, backlogCount) >= 0;
+    #endif
+}
+
+Socket_t Socket_acceptSocket(const Socket_t sockenForAccepting, const SockAddrHandle_t sockAddr)
+{
+    Socket_t newSocket;
+    #if defined(WINDOWS)
+        newSocket = accept(ListenSocket, NULL, NULL);
+        if(newSocket == INVALID_SOCKET)
         {
+            newSocket = -1;
+        }
+
+    #elif defined(LINUX)
+        socklen_t addrLen = sizeof(SockAddr_t);
+        return accept(sockenForAccepting, (struct sockaddr*)&sockAddr, &addrLen);
+    #endif
+}
+
+
+bool Socket_connectSocket(const Socket_t socket, const SockAddrHandle_t sockAddr)
+{
+    #if defined(WINDOWS)
+        return connect(socket, (SOCKADDR *)&sockAddr, sizeof(SockAddr_t)) != SOCKET_ERROR
+    #elif defined(LINUX)
+        return connect(socket, (struct sockaddr *)sockAddr, sizeof(SockAddr_t)) == 0;
+    #endif    
+    
+}
+
+
+
+bool Socket_sendFullPacket(const Socket_t socket, const void* packetBuffer, const uint8_t packetLength)
+{
+    assert(packetBuffer);
+    assert(packetLength > 0);
+
+    return send(socket, packetBuffer, packetLength, 0);
+
+}
+
+bool Socket_readFullPacket(const Socket_t socket, char* packetBuffer, const uint8_t packetLength)
+{
+    char* packetBufferEnd;
+
+    assert(packetBuffer);
+
+    packetBufferEnd = packetBuffer + packetLength;
+
+    while (packetBuffer < packetBufferEnd) 
+    {
+        uint8_t readedBytes = recv(socket, packetBuffer, (packetBufferEnd - packetBuffer), 0);
+        if(readedBytes >= 0)
+        {
+            packetBuffer += readedBytes;
+        }else
+        {
+            Log_e(TAG, "Failed to read packet fully");
             return false;
         }
 
-    #endif
-
-    return true;
-}
-
-bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddress, const uint32_t port)
-{
-    struct sockaddr_in server;
-    memset(&server, 0, sizeof server);
-    server.sin_addr.s_addr = inet_addr(serverAddress);
-    server.sin_family = AF_INET;
-    server.sin_port = htons((uint16_t) port); 
-    
-    if (connect(handle->socket, (struct sockaddr *)&server, sizeof(server)) < 0)
-    {
-        #if defined(WINDOWS)
-            closesocket(handle->socket);
-            WSACleanup();
-        #elif defined(LINUX)
-            // Nothing here
-        #endif
-        
-        return false;
     }
 
     return true;
-
 }
 
-int Network_write(NetworkingHandle_t handle, size_t lengthToWrite)
-{
-
-    if(handle->txBuf == NULL)
-    {
-        printf("Tx buffer is null");
-        return -1;
-    }
-
-    return send(handle->socket, handle->txBuf, lengthToWrite, 0);
-
-}
-
-int Network_read(NetworkingHandle_t handle)
-{
-    
-
-    if(handle->rxBuf == NULL)
-    {
-        printf("rxBuf is null");
-        return -1;
-    }
-
-    return recv(handle->socket, handle->rxBuf, sizeof(handle->rxBuf), 0);
-}
-
-int Network_close(NetworkingHandle_t handle)
+bool Socket_close(const Socket_t socket)
 {
     #if defined(WINDOWS)
-        closesocket(handle->socket);
+        closesocket(socket);
         WSACleanup();
     #elif defined(LINUX)
-        // Nothing here
+        return close(socket) != -1;
     #endif
 }

@@ -7,7 +7,7 @@
 #define SERVER_PASS_LENGTH          20
 #define SERVER_USERNAME_LENGTH      8
 #define MASK(ones) ((0x01 << ones) - 1)
-
+#define LISTEN_BACKLOG              3
 
 // Packet Sizes
 #define LOGIN_RESPONSE_PACKET_SIZE      2

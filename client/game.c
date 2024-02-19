@@ -77,7 +77,7 @@ static void paintArena_();
 static void paintBorders_(WINDOW* window);
 static void paintSnake_();
 static void paintFood_();
-static void paintEnemySnake_();
+// static void paintEnemySnake_();
 static void clearScreen_();
 static void generateNewPos_(Point_t* oldPoint);
 static void initGame_();
@@ -92,10 +92,9 @@ static void playSinglePlayer_();
 static void transformSnake_();
 static ThreadRet_t paintingThread_(void* data);
 // static void flushBufferPrint_();
-static ThreadRet_t networkReadLoop_();
+// static ThreadRet_t networkReadLoop_();
 static void closeThreads_();
-static ThreadRet_t networkSendLoop_();
-static bool networkInit_();
+// static ThreadRet_t networkSendLoop_();
 static void exitGame_();
 static void processMenuWithSelection_();
 static void handleDataPacket_(char dataPacketId, char length, char* dataBuffer);
@@ -125,7 +124,6 @@ bool isGameRunning = true;
 Snake_t* snake;
 Point_t foodPos;
 int8_t currentDirection = 1;
-Networking_t networkObject;
 int readed = 0;
 bool rxLock = false;
 WINDOW* arena;
@@ -217,11 +215,11 @@ static void gameLoop_()
     CREATE_THREAD(paintThread, paintingThread_, NULL);
     CREATE_THREAD(eventsThread, handleInput_, NULL);
 
-    if(isOnline)
-    {
-        CREATE_THREAD(networkingSendThread, networkSendLoop_, NULL);
-        CREATE_THREAD(networkingReadThread, networkReadLoop_, NULL);
-    }
+    // if(isOnline)
+    // {
+    //     CREATE_THREAD(networkingSendThread, networkSendLoop_, NULL);
+    //     CREATE_THREAD(networkingReadThread, networkReadLoop_, NULL);
+    // }
 
     while (isGameRunning)
     {
@@ -292,7 +290,7 @@ static void handleBlockPainting_()
     // memset(printBuffer, CHAR_EMPTY, sizeof(printBuffer));
     paintFood_();
     paintSnake_();
-    paintEnemySnake_();
+    // paintEnemySnake_();
     // paintFood_();
 }
 
@@ -311,22 +309,6 @@ static void paintBorders_(WINDOW* window)
 {
 
     box(window, CHAR_OBSTACKLE, CHAR_OBSTACKLE);
-
-    // for(metric_t i = 0; i < ARENA_WIDTH; i++)
-    // {
-    //     printBuffer[0][i] = CHAR_OBSTACKLE;
-    //     printBuffer[ARENA_HEIGHT - 1][i] = CHAR_OBSTACKLE;
-    // }
-    
-    // for(metric_t i = 0;i < ARENA_HEIGHT; i++)
-    // {
-    //     printBuffer[i][0] = '\n';
-    //     printBuffer[i][1] = CHAR_OBSTACKLE;
-    //     printBuffer[i][ARENA_WIDTH - 1] = CHAR_OBSTACKLE;
-    // }
-
-    
-
 }
 
 static void paintSnake_()
@@ -345,22 +327,22 @@ static void paintFood_()
     mvwaddch(arena, foodPos.y, foodPos.x, CHAR_FOOD);
 }
 
-static void paintEnemySnake_()
-{
-    char* pointStart = strchr(networkObject.rxBuf, SYNC_BYTE);
-    if(pointStart == NULL)
-    {
-        return;
-    }
-    pointStart++;
-    while (*pointStart != SYNC_BYTE && (pointStart < (networkObject.rxBuf + readed)))
-    {
-        handleDataPacket_(pointStart[0], pointStart[1], pointStart + 2);
-        mvwaddch(arena, pointStart[1], pointStart[0], CHAR_ENEMY);
-        pointStart += 2;
-    }
+// static void paintEnemySnake_()
+// {
+//     char* pointStart = strchr(networkObject.rxBuf, SYNC_BYTE);
+//     if(pointStart == NULL)
+//     {
+//         return;
+//     }
+//     pointStart++;
+//     while (*pointStart != SYNC_BYTE && (pointStart < (networkObject.rxBuf + readed)))
+//     {
+//         handleDataPacket_(pointStart[0], pointStart[1], pointStart + 2);
+//         mvwaddch(arena, pointStart[1], pointStart[0], CHAR_ENEMY);
+//         pointStart += 2;
+//     }
     
-}
+// }
 
 //  if(snake->point.x == pointStart[0] && snake->point.y == pointStart[1])
 //     {
@@ -540,80 +522,60 @@ static void transformSnake_()
 //     fwrite(printBuffer, 1, sizeof(printBuffer), stdout);
 // }
 
-static bool networkInit_()
-{   
-Log_d(TAG, "Before init");
-    if(!Networking_init())
-    {
-        Log_e(TAG, "Failed init network");
-        return SOCKET_ERROR;
-    }
+// static ThreadRet_t networkSendLoop_()
+// {
+//     while (isGameRunning)
+//     {
+//         Snake_t* currentNode = snake;
+//         int byteIdx = 0;
 
-    Log_d(TAG, "Succesful initialized socket framework");
-    if(!Networking_initializeSocket(&networkObject))
-    {
-        Log_e(TAG, "Failed init network");
-        return SOCKET_ERROR;
-    }
-    Log_d(TAG, "Succesful initialized socket");
-
-    return 0;
-}
-
-static ThreadRet_t networkSendLoop_()
-{
-    while (isGameRunning)
-    {
-        Snake_t* currentNode = snake;
-        int byteIdx = 0;
-
-        networkObject.txBuf[byteIdx] = (char) SYNC_BYTE;
-        byteIdx++;
-        while(currentNode != NULL)
-        {
-            networkObject.txBuf[byteIdx] = currentNode->point.x;
-            networkObject.txBuf[byteIdx + 1] = currentNode->point.y;
-            currentNode = currentNode->snake;
-            byteIdx += 2;
-        }
-        int written;
+//         networkObject.txBuf[byteIdx] = (char) SYNC_BYTE;
+//         byteIdx++;
+//         while(currentNode != NULL)
+//         {
+//             networkObject.txBuf[byteIdx] = currentNode->point.x;
+//             networkObject.txBuf[byteIdx + 1] = currentNode->point.y;
+//             currentNode = currentNode->snake;
+//             byteIdx += 2;
+//         }
+//         int written;
         
-        if(written = Network_write(&networkObject, byteIdx + 1) == 0) // SOCKET_ERROR
-        {
-            #if defined(WINDOWS)
-                printf("Closing socket TX \n%d", WSAGetLastError());
-            #endif
+//         if(written = Network_writeFullPacket(&networkObject, networkObject.txBuf,byteIdx + 1) == 0) // SOCKET_ERROR
+//         {
+//             #if defined(WINDOWS)
+//                 printf("Closing socket TX \n%d", WSAGetLastError());
+//             #endif
 
-            Network_close(&networkObject);
-            exitGame_();
-            return NULL;
-        }
-        // printf("TX: %d %d %d %d...\n", networkObject.txBuf[0], networkObject.txBuf[1], networkObject.txBuf[2],  networkObject.txBuf[3]);
-        PUT_SLEEP(NETWORK_SPEED);
+//             Network_close(&networkObject);
+//             exitGame_();
+//             return NULL;
+//         }
+//         // printf("TX: %d %d %d %d...\n", networkObject.txBuf[0], networkObject.txBuf[1], networkObject.txBuf[2],  networkObject.txBuf[3]);
+//         PUT_SLEEP(NETWORK_SPEED);
 
-    }
+//     }
     
-}
+// }
 
-static ThreadRet_t networkReadLoop_()
-{
-    while (isGameRunning)
-    {
+// static ThreadRet_t networkReadLoop_()
+// {
+//     while (isGameRunning)
+//     {
    
-        if((readed = Network_read(&networkObject)) == 0) // SOCKET_ERROR
-        {
-            #if defined(WINDOWS)
-                printf("Closing socket RX\n %d", WSAGetLastError());
-            #endif
+//         if((readed = Network_readFullPacket(&networkObject, networkObject.rxBuf, 1)) == 0) // SOCKET_ERROR
+//         {
+//             #if defined(WINDOWS)
+//                 printf("Closing socket RX\n %d", WSAGetLastError());
+//             #endif
             
-            Network_close(&networkObject);
-            exitGame_();
-        }
-        // printf("RX: %d %d %d...\n", networkObject.rxBuf[0], networkObject.rxBuf[1], networkObject.rxBuf[2]);
-        PUT_SLEEP(NETWORK_SPEED);
-    }
+//             Network_close(&networkObject);
+//             exitGame_();
+//         }
+//         // printf("RX: %d %d %d...\n", networkObject.rxBuf[0], networkObject.rxBuf[1], networkObject.rxBuf[2]);
+//         PUT_SLEEP(NETWORK_SPEED);
+//     }
   
-}
+// }
 
 static void playSinglePlayer_()
 {
@@ -646,21 +608,28 @@ static void playSinglePlayer_()
 static void playInServer_(const GameSettingsHandle_t settings)
 {
     char loginResponseBuffer[LOGIN_RESPONSE_PACKET_SIZE];
-
+    Socket_t connectSocket;
     LoginResponsePacket_t loginResponse;
 
-    if(!Networking_init())
+    SockAddr_t clientAddr;
+    clientAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    clientAddr.sin_family = AF_INET;
+    clientAddr.sin_port = htons(DEFAULT_PORT); 
+
+    if(!Socket_init())
     {
         Log_e(TAG, "Failed init network");
         return;
     }
 
     Log_d(TAG, "Succesful initialized socket framework");
-    if(!Networking_initializeSocket(&networkObject))
+
+    if((connectSocket = Socket_createSocket()) == -1)
     {
         Log_e(TAG, "Failed init network");
         return;
     }
+    
     Log_d(TAG, "Succesful initialized socket");
 
     if(settings->serverSettings != NULL)
@@ -670,7 +639,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
         PUT_SLEEP(10); // waitime to initialize server
     }
 
-    if(!Networking_connectSocket(&networkObject, "127.0.0.1", DEFAULT_PORT))
+    if(!Socket_connectSocket(connectSocket, &clientAddr))
     {
         Log_e(TAG,"Failed connect server\n");
         return;
@@ -678,18 +647,18 @@ static void playInServer_(const GameSettingsHandle_t settings)
     Log_i(TAG, "Succesfuly connected to server");
 
     // Sending login request
-    if(send(networkObject.socket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t), 0) == sizeof(LoginRequestPacket_t))
+    if(Socket_sendFullPacket(connectSocket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t)))
     {
         Log_i(TAG,"Successfuly sent Login request");
     }else
     {
         Log_i(TAG,"Failed to send login request");
-        close(networkObject.socket);
+        Socket_close(connectSocket);
         return;
     }
 
     // listening login response
-    if(recv(networkObject.socket, loginResponseBuffer, sizeof(loginResponseBuffer), 0) == sizeof(loginResponseBuffer))
+    if(Socket_readFullPacket(connectSocket, loginResponseBuffer, sizeof(loginResponseBuffer)))
     {
 
         Protocol_decapLoginResponse(&loginResponse, loginResponseBuffer);
@@ -697,17 +666,18 @@ static void playInServer_(const GameSettingsHandle_t settings)
    
         if(loginResponse.status == 0)
         {
-            close(networkObject.socket);
+            Socket_close(connectSocket);
         }else 
         {
-            close(networkObject.socket);
+            Socket_close(connectSocket);
         }
 
     }else
     {
-        close(networkObject.socket);
+        Socket_close(connectSocket);
     }
 
+    
     return;
 }
 

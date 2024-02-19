@@ -19,11 +19,10 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
 
 bool Server_begin(const ServerConfig_t* config)
 {
-    Networking_t networkObject;
+    Socket_t listenSocket;
     int* socketDescriptors;
-    struct sockaddr_in server;
-    socklen_t addresslen = sizeof(server); 
-    
+    SockAddr_t server;
+
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons(config->serverPort);
@@ -32,7 +31,7 @@ bool Server_begin(const ServerConfig_t* config)
     
 
     // Stage of prepare
-    if(!Networking_init())
+    if(!Socket_init())
     {
         Log_e(TAG, "Failed init network");
         return SOCKET_ERROR;
@@ -40,66 +39,70 @@ bool Server_begin(const ServerConfig_t* config)
 
     Log_d(TAG, "Successfuly initialized socket framework");
     
-    if(!Networking_initializeSocket(&networkObject))
+    if((listenSocket = Socket_createSocket()) == -1)
     {
-        Log_e(TAG, "Failed init socket");
+        Log_e(TAG, "Failed create socket");
         return SOCKET_ERROR;
     }
 
     Log_d(TAG, "Succesfuly initialized socket");
+    
+    if (!Socket_bind(listenSocket, &server)) 
+    {
+        Log_e(TAG,"Failed bindserver socket");
+        return SOCKET_ERROR;
+    }
 
-    #if defined(LINUX)
-        if (bind(networkObject.socket, (const struct sockaddr*) &server, addresslen) < 0) 
-        {
-            Log_e(TAG,"Failed bindserver socket");
-            return SOCKET_ERROR;
-        }
+    Log_d(TAG, "Succesfuly binded server socket");
 
-        Log_d(TAG, "Succesfuly binded server socket");
+    if (!Socket_listen(listenSocket, LISTEN_BACKLOG)) 
+    {
+        Log_e(TAG,"Failed listen server socket");
+        return SOCKET_ERROR;
+    }
 
-        if (listen(networkObject.socket, 3) < 0) 
-        {
-            Log_e(TAG,"Failed listen server socket");
-            return SOCKET_ERROR;
-        }
+    Log_d(TAG, "Listening for incoming sockets");
+    
+    socketDescriptors = malloc(sizeof(int) * config->playerCap);
+    
+    if(socketDescriptors == NULL)
+    {
+        Log_e(TAG,"Failed malloc of socket descriptor list %u", config->playerCap);
+        return false;
+    }
 
-        Log_d(TAG, "Listening for incoming sockets");
-        
-        socketDescriptors = malloc(sizeof(int) * config->playerCap);
-        
-        if(socketDescriptors == NULL)
+    Log_i(TAG, "Server sucessfuly started");
+
+    // Stage of accepting logins
+    for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
+    {
+        Socket_t new_socket = Socket_acceptSocket(listenSocket, &server);
+        Log_d(TAG, "Accepted new socket");
+        // handling player password validation
+        if(isPlayerValidOnSocket_(new_socket, config->serverPassword))
         {
-            Log_e(TAG,"Failed malloc of socket descriptor list %u", config->playerCap);
-            return false;
-        }
-        // Stage of accepting logins
-        for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
+            socketDescriptors[playerId] = new_socket;
+            playerId++;
+        }else
         {
-            int new_socket = accept(networkObject.socket, (struct sockaddr*)&server, &addresslen);
-            Log_d(TAG, "Accepted new socket");
-            // handling player password validation
-            if(isPlayerValidOnSocket_(new_socket, config->serverPassword))
+            if(Socket_close(new_socket))
             {
-                socketDescriptors[playerId] = new_socket;
-                playerId++;
+                Log_d(TAG, "Closing player socket");
             }else
             {
-                close(new_socket);
+                Log_e(TAG, "Failed to close player socket");
             }
             
         }
+        
+    }
 
         // Successfuly found all players
         // Continue to configuration page
         
- 
-     
-    #elif defined(WINDOWS)
-        // NOTHING FOR NOW
-    #endif
 }
 
-static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassword)
+static bool isPlayerValidOnSocket_(const Socket_t socket, const char* validityPassword)
 {
     LoginRequestPacket_t loginPacket;
     LoginResponsePacket_t response;
@@ -108,18 +111,18 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
     response.color_id = 0;
     response.body_ascii = '0';
 
-    if (socketfd < 0)
+    if (socket == -1)
     {
         Log_e(TAG, "Failed accept server socket");
         return false;
     }
 
-    if(validateLoginRecv_(socketfd, &loginPacket, validityPassword))
+    if(validateLoginRecv_(socket, &loginPacket, validityPassword))
     {
         response.status = OKAY;
         Protocol_encapLoginResponse(responseBuffer, &response);
 
-        if(send(socketfd, responseBuffer, sizeof(responseBuffer), 0) >= 0)
+        if(Socket_sendFullPacket(socket, responseBuffer, sizeof(responseBuffer)))
         {
             Log_i(TAG, "Successful logged player: %s", loginPacket.loginUsername);
             return true;
@@ -132,7 +135,7 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
         // Failed login, need continue
         response.status = FAIL_PASSW;
         Protocol_encapLoginResponse(responseBuffer, &response);
-        send(socketfd, responseBuffer, sizeof(responseBuffer), 0);
+        Socket_sendFullPacket(socket, responseBuffer, sizeof(responseBuffer));
         return false;
     }
 }
@@ -143,10 +146,11 @@ static void handleConfigurations_()
     
 }
 
-static bool validateLoginRecv_(const int socketfd, LoginRequestPacketHandle_t loginPacket, const char* serverPassword)
+static bool validateLoginRecv_(const Socket_t socket, LoginRequestPacketHandle_t loginPacket, const char* serverPassword)
 {
     // reading password
-    if(recv(socketfd, loginPacket, sizeof(LoginRequestPacket_t), 0) <= 0)
+    // TODO: Need solve issue of server killing on player disconnect
+    if(!Socket_readFullPacket(socket, (char*) loginPacket, sizeof(LoginRequestPacket_t)))
     {
         Log_e(TAG,"Read failure of socket");
         return false;
