@@ -1,21 +1,20 @@
 #include "networking.h"
+#include "../logger/logger.h"
 
+const static char* TAG = "NETWORKING"; 
 
 bool Networking_init()
 {
     #if defined(WINDOWS)
         WSADATA wsa;
-        printf("\nInitialising Winsock...\n");
         if (WSAStartup(MAKEWORD(2,2), &wsa) != 0)
         {
-            printf("Failed. Error Code : %d.\n", WSAGetLastError());
             return false;
         }
     #elif defined(LINUX)
         // Nothing for LINUX :D
     #endif
 
-    printf("Initialised.\n");
     return true;
 }
 
@@ -25,7 +24,6 @@ bool Networking_initializeSocket(NetworkingHandle_t handle)
 
         if((handle->socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
         {
-            printf("Could not create socket : %d.\n", WSAGetLastError());
             WSACleanup();
             return false;
         }
@@ -34,14 +32,11 @@ bool Networking_initializeSocket(NetworkingHandle_t handle)
 
         if((handle->socket = socket(AF_INET, SOCK_STREAM, 0)) < 0)
         {
-            printf("Could not create socket : %d.\n", handle->socket);
             return false;
         }
 
     #endif
 
- 
-    printf("socket initialized:\n");
     return true;
 }
 
@@ -56,18 +51,14 @@ bool Networking_connectSocket(NetworkingHandle_t handle, const char* serverAddre
     if (connect(handle->socket, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
         #if defined(WINDOWS)
-            printf("Connect error:%d.\n", WSAGetLastError());
             closesocket(handle->socket);
             WSACleanup();
         #elif defined(LINUX)
             // Nothing here
-            printf("Connect error\n");
         #endif
         
         return false;
     }
-
-    printf("Succesfuly connected socket\n");
 
     return true;
 
