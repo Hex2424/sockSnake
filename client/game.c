@@ -546,14 +546,17 @@ static bool networkInit_()
 {   
     if(!Networking_init())
     {
-        printf("Failed init network\n");
+        Log_e(TAG, "Failed init network");
         return SOCKET_ERROR;
     }
+
+    Log_d(TAG, "Succesful initialized socket framework");
     if(!Networking_initializeSocket(&networkObject))
     {
-        printf("Failed init socket\n");
+        Log_e(TAG, "Failed init network");
         return SOCKET_ERROR;
     }
+    Log_d(TAG, "Succesful initialized socket");
 
     return 0;
 }
