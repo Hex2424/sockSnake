@@ -8,6 +8,10 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <unistd.h>
+#include "../logger/logger.h"
+
+
+const static char* TAG = "SERVER"; 
 
 
 static bool validateLoginRecv_(const int socketfd, LoginRequestPacket_t* loginPacket, const char* serverPassword);
@@ -30,40 +34,49 @@ bool Server_begin(const ServerConfig_t* config)
     // Stage of prepare
     if(!Networking_init())
     {
-        printf("Failed init network\n");
+        Log_e(TAG, "Failed init network");
         return SOCKET_ERROR;
     }
+
+    Log_d(TAG, "Successfuly initialized socket framework");
+    
     if(!Networking_initializeSocket(&networkObject))
     {
-        printf("Failed init socket\n");
+        Log_e(TAG, "Failed init socket");
         return SOCKET_ERROR;
     }
+
+    Log_d(TAG, "Succesfuly initialized socket");
 
     #if defined(LINUX)
         if (bind(networkObject.socket, (const struct sockaddr*) &server, addresslen) < 0) 
         {
-            printf("Failed bindserver socket\n");
+            Log_e(TAG,"Failed bindserver socket");
             return SOCKET_ERROR;
         }
+
+        Log_d(TAG, "Succesfuly binded server socket");
 
         if (listen(networkObject.socket, 3) < 0) 
         {
-            printf("Failed listen server socket\n");
+            Log_e(TAG,"Failed listen server socket");
             return SOCKET_ERROR;
         }
 
+        Log_d(TAG, "Listening for incoming sockets");
+        
         socketDescriptors = malloc(sizeof(int) * config->playerCap);
         
         if(socketDescriptors == NULL)
         {
-            printf("Failed malloc of socket descriptor list %u\n", config->playerCap);
+            Log_e(TAG,"Failed malloc of socket descriptor list %u", config->playerCap);
             return false;
         }
         // Stage of accepting logins
         for(uint8_t playerId = 0; playerId < config->playerCap; /*Do nothing*/ )
         {
             int new_socket = accept(networkObject.socket, (struct sockaddr*)&server, &addresslen);
-            
+            Log_d(TAG, "Accepted new socket");
             // handling player password validation
             if(isPlayerValidOnSocket_(new_socket, config->serverPassword))
             {
@@ -97,7 +110,7 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
 
     if (socketfd < 0)
     {
-        printf("Failed accept server socket\n");
+        Log_e(TAG, "Failed accept server socket");
         return false;
     }
 
@@ -108,7 +121,7 @@ static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassw
 
         if(send(socketfd, responseBuffer, sizeof(responseBuffer), 0) >= 0)
         {
-            printf("Successful logged player: %s\n", loginPacket.loginUsername);
+            Log_i(TAG, "Successful logged player: %s", loginPacket.loginUsername);
             return true;
         }else 
         {
@@ -133,15 +146,15 @@ static void handleConfigurations_()
 static bool validateLoginRecv_(const int socketfd, LoginRequestPacketHandle_t loginPacket, const char* serverPassword)
 {
     // reading password
-    if(recv(socketfd, loginPacket, sizeof(LoginRequestPacket_t), 0) < 0)
+    if(recv(socketfd, loginPacket, sizeof(LoginRequestPacket_t), 0) <= 0)
     {
-        printf("Read failure of socket\n");
+        Log_e(TAG,"Read failure of socket");
         return false;
     }
 
     if(strcmp(loginPacket->loginPassword, serverPassword) != 0)
     {
-        printf("Password is incorrect\n");
+        Log_d(TAG,"Password is incorrect %s != %s", loginPacket->loginPassword, serverPassword);
         return false;
     }
 

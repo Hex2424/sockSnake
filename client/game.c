@@ -7,7 +7,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include "../server/server.h"
-
+#include "../logger/logger.h"
 //**********************
 // CONST VARIABLES
 
@@ -65,8 +65,8 @@
     #define KILL_THREAD(handle) pthread_exit(handle)
 #endif
 
-const char TITLE[] = "Ascii Snake v0.1";
-
+const static char TITLE[] = "Ascii Snake v0.1";
+const static char* TAG = "CLIENT";
 
 //**********************
 // PRIVATE METHODS
@@ -142,7 +142,8 @@ int main(int argc, char **argv)
     {
         exitGame_();
     }
-    
+    //initGame_();
+    //gameLoop_();
     processMenuWithSelection_();
 }
 
@@ -626,8 +627,8 @@ static void playSinglePlayer_()
     {
         .loginSettings = 
         {   
-            .loginPassword = "1234",
-            .loginUsername = "Hex244"
+            .loginPassword = "123",
+            .loginUsername = "Hex24"
         },
         .playerConfig = 
         {
@@ -648,23 +649,25 @@ static void playInServer_(const GameSettingsHandle_t settings)
 
     if(settings->serverSettings != NULL)
     {
+	    Log_d(TAG,"Server initializing");
         CREATE_THREAD(serverThread, runServer, (void*) settings->serverSettings);
         PUT_SLEEP(10); // waitime to initialize server
     }
 
     if(!Networking_connectSocket(&networkObject, "127.0.0.1", DEFAULT_PORT))
     {
-        printf("Failed connect server\n");
+        Log_e(TAG,"Failed connect server\n");
         return;
     }
+    Log_i(TAG, "Succesfuly connected to server");
 
     // Sending login request
     if(send(networkObject.socket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t), 0) == sizeof(LoginRequestPacket_t))
     {
-        printf("Successfuly sent Login request\n");
+        Log_i(TAG,"Successfuly sent Login request");
     }else
     {
-        printf("Failed to send login request\n");
+        Log_i(TAG,"Failed to send login request");
         close(networkObject.socket);
         return;
     }
@@ -674,18 +677,16 @@ static void playInServer_(const GameSettingsHandle_t settings)
     {
 
         Protocol_decapLoginResponse(&loginResponse, loginResponseBuffer);
-       
-        printf("Successfuly received login response with status %d\n", loginResponse.status);
-       
+        Log_d(TAG, "Received login response with status %u", loginResponse.status);
+   
         if(loginResponse.status == 0)
         {
-
+            close(networkObject.socket);
         }else 
         {
             close(networkObject.socket);
         }
 
-        close(networkObject.socket);
     }else
     {
         close(networkObject.socket);
