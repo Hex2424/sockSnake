@@ -138,12 +138,10 @@ WINDOW* borderw;
 int main(int argc, char **argv)
 {
     // Firstly initializing network
-    if(networkInit_() != 0)
-    {
-        exitGame_();
-    }
+
     //initGame_();
     //gameLoop_();
+
     processMenuWithSelection_();
 }
 
@@ -544,6 +542,7 @@ static void transformSnake_()
 
 static bool networkInit_()
 {   
+Log_d(TAG, "Before init");
     if(!Networking_init())
     {
         Log_e(TAG, "Failed init network");
@@ -650,9 +649,23 @@ static void playInServer_(const GameSettingsHandle_t settings)
 
     LoginResponsePacket_t loginResponse;
 
+    if(!Networking_init())
+    {
+        Log_e(TAG, "Failed init network");
+        return;
+    }
+
+    Log_d(TAG, "Succesful initialized socket framework");
+    if(!Networking_initializeSocket(&networkObject))
+    {
+        Log_e(TAG, "Failed init network");
+        return;
+    }
+    Log_d(TAG, "Succesful initialized socket");
+
     if(settings->serverSettings != NULL)
     {
-	    Log_d(TAG,"Server initializing");
+	Log_d(TAG,"Server initializing");
         CREATE_THREAD(serverThread, runServer, (void*) settings->serverSettings);
         PUT_SLEEP(10); // waitime to initialize server
     }
