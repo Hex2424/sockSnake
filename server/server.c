@@ -8,7 +8,8 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <unistd.h>
-#include "logger.h"
+#include "../logger/logger.h"
+#include "../utils/crc32.h"
 
 const static char* TAG = "SERVER"; 
 
@@ -28,7 +29,7 @@ bool Server_begin(const ServerConfig_t* config)
     server.sin_port = htons(config->serverPort);
     assert(config->serverPassword);
     assert(config->playerCap != 0);
-    #include "../utils/crc32.h"
+  
     serverToken = CRC32_calc((uint8_t*) config->serverPassword);
     
     // Stage of prepare
