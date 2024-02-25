@@ -97,10 +97,16 @@ bool Server_begin(const ServerConfig_t* config)
         
     }
 
-        // Successfuly found all players
-        // Continue to configuration page
+    // Successfuly found all players
+    // Continue to configuration page
+
+
         
 }
+
+
+
+
 
 static bool isPlayerValidOnSocket_(const Socket_t socket, const char* validityPassword)
 {
