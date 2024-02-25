@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include "../server/server.h"
 #include "../logger/logger.h"
+#include "../utils/crc32.h"
 //**********************
 // CONST VARIABLES
 
@@ -591,7 +592,7 @@ static void playSinglePlayer_()
     {
         .loginSettings = 
         {   
-            .loginPassword = "123",
+            .passcrc32 = CRC32_calc((uint8_t*) "123"),
             .loginUsername = "Hex24"
         },
         .playerConfig = 
@@ -677,7 +678,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
         Socket_close(connectSocket);
     }
 
-    
+
     return;
 }
 

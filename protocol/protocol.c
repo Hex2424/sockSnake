@@ -2,8 +2,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
 
 
 void Protocol_encapLoginResponse(char* buffer, const LoginResponsePacketHandle_t packet)

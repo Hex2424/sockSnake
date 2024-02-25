@@ -8,28 +8,29 @@
 #include <sys/socket.h>
 #include <assert.h>
 #include <unistd.h>
-#include "../logger/logger.h"
-
+#include "logger.h"
 
 const static char* TAG = "SERVER"; 
 
 
-static bool validateLoginRecv_(const int socketfd, LoginRequestPacket_t* loginPacket, const char* serverPassword);
-static bool isPlayerValidOnSocket_(const int socketfd, const char* validityPassword);
+static bool validateLoginRecv_(const Socket_t socket, LoginRequestPacketHandle_t loginPacket, const uint32_t serverToken);
+static bool isPlayerValidOnSocket_(const int socketfd, const uint32_t serverToken);
 
 bool Server_begin(const ServerConfig_t* config)
 {
     Socket_t listenSocket;
     int* socketDescriptors;
     SockAddr_t server;
+    uint32_t serverToken;
 
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons(config->serverPort);
     assert(config->serverPassword);
     assert(config->playerCap != 0);
+    #include "../utils/crc32.h"
+    serverToken = CRC32_calc((uint8_t*) config->serverPassword);
     
-
     // Stage of prepare
     if(!Socket_init())
     {
@@ -79,7 +80,7 @@ bool Server_begin(const ServerConfig_t* config)
         Socket_t new_socket = Socket_acceptSocket(listenSocket, &server);
         Log_d(TAG, "Accepted new socket");
         // handling player password validation
-        if(isPlayerValidOnSocket_(new_socket, config->serverPassword))
+        if(isPlayerValidOnSocket_(new_socket, serverToken))
         {
             socketDescriptors[playerId] = new_socket;
             playerId++;
@@ -108,7 +109,7 @@ bool Server_begin(const ServerConfig_t* config)
 
 
 
-static bool isPlayerValidOnSocket_(const Socket_t socket, const char* validityPassword)
+static bool isPlayerValidOnSocket_(const Socket_t socket, const uint32_t validityToken)
 {
     LoginRequestPacket_t loginPacket;
     LoginResponsePacket_t response;
@@ -123,7 +124,7 @@ static bool isPlayerValidOnSocket_(const Socket_t socket, const char* validityPa
         return false;
     }
 
-    if(validateLoginRecv_(socket, &loginPacket, validityPassword))
+    if(validateLoginRecv_(socket, &loginPacket, validityToken))
     {
         response.status = OKAY;
         Protocol_encapLoginResponse(responseBuffer, &response);
@@ -152,9 +153,8 @@ static void handleConfigurations_()
     
 }
 
-static bool validateLoginRecv_(const Socket_t socket, LoginRequestPacketHandle_t loginPacket, const char* serverPassword)
+static bool validateLoginRecv_(const Socket_t socket, LoginRequestPacketHandle_t loginPacket, const uint32_t serverToken)
 {
-    // reading password
     // TODO: Need solve issue of server killing on player disconnect
     if(!Socket_readFullPacket(socket, (char*) loginPacket, sizeof(LoginRequestPacket_t)))
     {
@@ -162,9 +162,9 @@ static bool validateLoginRecv_(const Socket_t socket, LoginRequestPacketHandle_t
         return false;
     }
 
-    if(strcmp(loginPacket->loginPassword, serverPassword) != 0)
+    if(loginPacket->passcrc32 != serverToken)
     {
-        Log_d(TAG,"Password is incorrect %s != %s", loginPacket->loginPassword, serverPassword);
+        Log_d(TAG,"Password is incorrect %u != %u", loginPacket->passcrc32, serverToken);
         return false;
     }
 

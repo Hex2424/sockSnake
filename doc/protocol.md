@@ -4,8 +4,8 @@
 ## Request
 | Field     | start byte    | length (bytes) | description                           |
 |-----------| ---------     | -------------  | ------------                          |
-| password  | 0             | 20             | password used to login lobby          |
-| username  | 20            | 8              | username of specific client           |
+| passcrc32 | 0             | 4              | password hashed as crc32 used to login lobby          |
+| username  | 4             | 8              | username of specific client           |
 
 
 ## Response

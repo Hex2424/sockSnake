@@ -10,12 +10,26 @@ ELSE()
   add_compile_definitions(LINUX)
 ENDIF()
 
-set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+add_compile_definitions(VERBOSE_LEVEL=3)
+
+set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+
+include_directories(
+  utils
+  client
+  server
+  logger
+  networking
+)
 
 add_executable(asciisnake 
     client/game.c 
     networking/networking.c
     protocol/protocol.c
-    server/server.c)
+    server/server.c
+    server/snake/snake.c
+    logger/logger.c
+    utils/crc32.c
+    )
 
 # set_property(TARGET asciisnake PROPERTY CXX_STANDARD 17)

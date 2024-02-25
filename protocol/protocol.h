@@ -23,7 +23,7 @@ typedef enum
 
 typedef struct
 {
-    char loginPassword[SERVER_PASS_LENGTH];
+    uint32_t passcrc32;
     char loginUsername[SERVER_USERNAME_LENGTH];
 }LoginRequestPacket_t;
 
