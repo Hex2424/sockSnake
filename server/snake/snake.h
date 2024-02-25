@@ -30,7 +30,10 @@ typedef struct
    bool isStartX;
 }Snake_t;
 
-
+typedef struct
+{
+    
+}SnakeSocketData_t;
 
 #endif
 

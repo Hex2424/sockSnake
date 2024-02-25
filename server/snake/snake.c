@@ -80,6 +80,12 @@ bool SnakeNest_snakesTickUpdate(void)
 
     return true;
 }
+
+static inline bool isSnakeCursorOnX(const Snake_t* snake, const BendCursor_t cursor)
+{
+    return ((cursor - snake->bends) % 2 == 0);
+}
+
 //    x1 y1y2  x2x3 y3y4 x5
 // 0, 0,    3,   1,   5
 
@@ -107,22 +113,21 @@ static void snakeMoveHead_(const Snake_t* snake)
     const BendCursor_t value2 = snakeGetNextBend_(snake, value1);
     const BendCursor_t value3 = snakeGetNextBend_(snake, value2);
     
-    const bool isYFirstInHead = (snake->head - snake->bends) % 2;
+    const bool isXFirstInHead =  isSnakeCursorOnX(snake, snake->head);
 
-    if(isYFirstInHead)
-    {
-        y1 = value1;
-        x1 = value2;
-        y2 = value3;
-        x2 = x1;
-    }else 
+    if(isXFirstInHead)
     {
         x1 = value1;
         y1 = value2;
         x2 = value3;
         y2 = y1;
+    }else 
+    {
+        y1 = value1;
+        x1 = value2;
+        y2 = value3;
+        x2 = x1;
     }
-
 
     const Metric_t xDiff = SIGN((*x2 - *x1));
     const Metric_t yDiff = SIGN((*y2 - *y1));
@@ -151,12 +156,12 @@ static void snakeMoveHead_(const Snake_t* snake)
         directionToIncrementor_(snake->direction, &xIncr, &yIncr);
         valueNew = snakeGetNextBend_(snake, value3);
         
-        if(isYFirstInHead)
-        {
-            *valueNew = *x2 + xIncr;
-        }else 
+        if(isXFirstInHead)
         {
             *valueNew = *y2 + yIncr;
+        }else 
+        {
+            *valueNew = *x2 + xIncr;
         }
 
         ((Snake_t*) snake)->head = (BendCursor_t) value2; // moving cursor of head one further
