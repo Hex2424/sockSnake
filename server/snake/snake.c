@@ -4,19 +4,21 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 static Snake_t* snakes;
-static uint8_t count;
+static SnakeId_t count;
 
 #define SIGN(value) (((value) > 0) - ((value) < 0))
 
 
-static inline const BendCursor_t snakeGetNextBend_(const Snake_t* snake, const BendCursor_t cursor);
-static inline void snakeMove_(const snakeId_t snakeId);
+static inline void snakeMove_(const SnakeId_t snakeId);
 static void snakeMoveHead_(const Snake_t* snake);
 static void snakeMoveTail_(Snake_t* snake);
 static inline void directionToIncrementor_(const Direction_e direction, BendCursor_t xIncr, BendCursor_t yIncr);
 static inline const Direction_t incrementorToDirecton_(const BendCursor_t xIncr, const BendCursor_t yIncr);
+static inline const BendCursor_t snakeGetBendOffset_(const Snake_t* snake, const BendCursor_t cursor, const uint8_t offset);
+static void* bufferizeSnakeIntoBuffer_(const Snake_t* snake, void* bufferPosPtr, const uint16_t freeSpaceAvailable);
 
 bool SnakeNest_init(const uint8_t snakeCount)
 {
@@ -40,7 +42,7 @@ void SnakeNest_createSnakes(const uint8_t arenaWidth, const uint8_t arenaHeight)
     assert(arenaHeight > 10);
 
     //TODO: for now random, need smarter way to determine spawn locations so that snakes start far from each other
-    for(uint8_t snakeId = 0; snakeId < count; snakeId++)
+    for(SnakeId_t snakeId = 0; snakeId < count; snakeId++)
     {
         Metric_t x, y;
         Snake_t* snake;
@@ -60,7 +62,7 @@ void SnakeNest_createSnakes(const uint8_t arenaWidth, const uint8_t arenaHeight)
     }
 }
 
-void SnakeNest_snakeChangeDirection(const snakeId_t snakeId, const Direction_t direction)
+void SnakeNest_snakeChangeDirection(const SnakeId_t snakeId, const Direction_t direction)
 {
     // checking if not equal oposite direction
     if((direction & snakes[snakeId].direction) == 0)
@@ -73,7 +75,7 @@ void SnakeNest_snakeChangeDirection(const snakeId_t snakeId, const Direction_t d
 bool SnakeNest_snakesTickUpdate(void)
 {
     //TODO: for now random, need smarter way to determine spawn locations so that snakes start far from each other
-    for(snakeId_t snakeId = 0; snakeId < count; snakeId++)
+    for(SnakeId_t snakeId = 0; snakeId < count; snakeId++)
     {
         snakeMove_(snakeId);
     }
@@ -98,7 +100,7 @@ static inline bool isSnakeCursorOnX(const Snake_t* snake, const BendCursor_t cur
 // x  y  x  y
 // 0, 0, 0, 0 
 
-static inline void snakeMove_(const snakeId_t snakeId)
+static inline void snakeMove_(const SnakeId_t snakeId)
 {
     const Snake_t* snake = &snakes[snakeId];
     snakeMoveHead_(snake);
@@ -109,9 +111,9 @@ static void snakeMoveHead_(const Snake_t* snake)
 {
     BendCursor_t x1, y1, x2, y2;
 
-    const BendCursor_t value1 = snake->head;
-    const BendCursor_t value2 = snakeGetNextBend_(snake, value1);
-    const BendCursor_t value3 = snakeGetNextBend_(snake, value2);
+    const BendCursor_t value1 = snakeGetBendOffset_(snake, snake->head, 0);
+    const BendCursor_t value2 = snakeGetBendOffset_(snake, snake->head, 1);
+    const BendCursor_t value3 = snakeGetBendOffset_(snake, snake->head, 2);
     
     const bool isXFirstInHead =  isSnakeCursorOnX(snake, snake->head);
 
@@ -154,7 +156,7 @@ static void snakeMoveHead_(const Snake_t* snake)
         Metric_t yIncr;
 
         directionToIncrementor_(snake->direction, &xIncr, &yIncr);
-        valueNew = snakeGetNextBend_(snake, value3);
+        valueNew = snakeGetBendOffset_(snake, snake->head, 4);
         
         if(isXFirstInHead)
         {
@@ -171,9 +173,8 @@ static void snakeMoveHead_(const Snake_t* snake)
 
 static void snakeMoveTail_(Snake_t* snake)
 {
-    BendCursor_t incrementValue = snake->tail;
-    const BendCursor_t secondthValue = snakeGetNextBend_(snake, incrementValue);
-    BendCursor_t destinationValue = snakeGetNextBend_(snake, secondthValue);
+    BendCursor_t incrementValue = snakeGetBendOffset_(snake, snake->tail, 0);
+    BendCursor_t destinationValue = snakeGetBendOffset_(snake, snake->tail, 2);
     
     const Metric_t incrementor = SIGN((*destinationValue - *incrementValue));
 
@@ -182,7 +183,7 @@ static void snakeMoveTail_(Snake_t* snake)
     if(incrementor == 0)
     {
         // moving tail cursor by 1
-        snake->tail = secondthValue;
+        snake->tail = snakeGetBendOffset_(snake, snake->tail, 1);
     }
 }
 
@@ -240,17 +241,76 @@ static inline void directionToIncrementor_(const Direction_e direction, BendCurs
 } 
 
 
+
 // Handling ring buffer overflow more efficiently
-static inline const BendCursor_t snakeGetNextBend_(const Snake_t* snake, const BendCursor_t cursor)
+static inline const BendCursor_t snakeGetBendOffset_(const Snake_t* snake, const BendCursor_t cursor, const uint8_t offset)
 {
     const BendCursor_t overflowCursor = (const BendCursor_t) (snake->bends + sizeof(snake->bends));
-    const BendCursor_t comparisonCursor = &cursor[1];
+    const BendCursor_t comparisonCursor = &cursor[offset];
+    const int16_t overflowedBy = (overflowCursor - comparisonCursor);
 
-    if(overflowCursor > comparisonCursor)
+    if(overflowedBy > 0)
     {
-        return comparisonCursor;
+        return (const BendCursor_t)snake->bends + overflowedBy;
     }else
     {
-        return &snakes->bends[1];
+        return comparisonCursor;
     }
+}
+
+
+static const uint8_t bufferizeSnakesData_(void* buffer, const uint16_t bufferSize)
+{
+    void* lastCoppiedPtr;
+
+    lastCoppiedPtr = buffer;
+
+    
+    // TODO: do something to do less memcpy
+
+    for(SnakeId_t snakeId = 0; snakeId < count; snakeId++)
+    {
+        lastCoppiedPtr = bufferizeSnakeIntoBuffer_(&snakes[snakeId], lastCoppiedPtr, );
+
+    }
+}
+
+static void* bufferizeSnakeIntoBuffer_(const Snake_t* snake, void* bufferPosPtr, const uint16_t freeSpaceAvailable)
+{
+    // Checking if ring buffer is divided to two parts
+    const BendCursor_t headTopCursor = snakeGetBendOffset_(snake, snake->head, 2);
+    
+    if(snake->tail < headTopCursor)
+    {
+        const uint16_t tailToHeadLength = (headTopCursor - snake->tail);
+        const uint16_t predictedSpaceConsumption = tailToHeadLength + sizeof(uint16_t);
+
+        if(predictedSpaceConsumption <= freeSpaceAvailable)
+        {
+            ((uint8_t*)bufferPosPtr)[0] = tailToHeadLength & 0xFF;
+            ((uint8_t*)bufferPosPtr)[1] = tailToHeadLength >> 8;
+            bufferPosPtr = mempcpy(bufferPosPtr, snake->tail, predictedSpaceConsumption);
+        }else 
+        {
+            bufferPosPtr = NULL;
+        }
+
+    }else
+    {
+        const uint16_t tailToBufferEndLength = (snake->bends + sizeof(snake->bends)) - snake->tail;
+        const uint16_t bufferStartToHeadLength = (headTopCursor - snake->bends);
+        const uint16_t predictedSpaceConsumption = tailToBufferEndLength + bufferStartToHeadLength;
+
+        if(predictedSpaceConsumption <= freeSpaceAvailable)
+        {
+            bufferPosPtr = mempcpy(bufferPosPtr, snake->tail, tailToBufferEndLength); // Copying first fragment
+            bufferPosPtr = mempcpy(bufferPosPtr, snake->bends, bufferStartToHeadLength); // copying last fragment
+        }else
+        {
+            bufferPosPtr = NULL;
+        }
+
+    }
+
+    return bufferPosPtr;
 }
