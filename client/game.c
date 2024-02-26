@@ -197,9 +197,10 @@ static void processMenuWithSelection_(void)
                 }
             } continue;
 
-            case KEY_ENTER:
-            case ' ': 
-            break;
+            case KEY_ENTER:break;
+            case ' ':break;
+
+	    default:continue;
 
         }
         break;
@@ -577,6 +578,7 @@ static void transformSnake_()
 //     }
   
 // }
+
 
 static void playSinglePlayer_()
 {
