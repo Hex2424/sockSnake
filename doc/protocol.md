@@ -44,6 +44,17 @@
 | ready_flag_n| n             | x             |                                        |
 
 
+# Server -> Client game packet
+
+## DATAGRAM
+| Field       | start bit     | length (bits) | description                            |
+|-----------  | ---------     | ------------- | ------------                           |
+| packet_type | 0             | 2             | type identifying datagram  (0x00)      |
+| reserved    | 2             | 6             | reserved                               |
+| snakeb_len  | 8             | 9             | buffer length of one snake body        |
+| starting_x  | 17            | 1             | Tells what is indicating first byte    |
+| reserved    | 18            | 7             | Tells what is indicating first byte    |
+| body_buffer | 24            | snakeb_len    | compressed snake body                  |
 
 
 <!-- # Client -> Server ingame packet
