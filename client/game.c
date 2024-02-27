@@ -44,6 +44,9 @@
 #define CHAR_FOOD           'Q'
 #define CHAR_EMPTY          ' '
 
+// Keypads missing
+#define KEY_SECONDARY_ENTER 10
+
 #if defined(WINDOWS)
     #define THREAD_HANDLE HANDLE
     #define CLEAR_COMMAND "cls"
@@ -151,9 +154,11 @@ static void processMenuWithSelection_(void)
     initscr();
     noecho();
     curs_set(0);
+    
     menuWindow = newwin(MENU_WINDOW_HEIGHT, MENU_WINDOW_WIDTH, 0, 0);
     box(menuWindow, 0, 0);
     keypad(menuWindow, true);
+
 
     mvwaddstr(menuWindow, 1, (MENU_WINDOW_WIDTH - (sizeof(TITLE) - 1)) / 2, TITLE);
 
@@ -197,6 +202,7 @@ static void processMenuWithSelection_(void)
                 }
             } continue;
 
+            case KEY_SECONDARY_ENTER: break;
             case KEY_ENTER:break;
             case ' ':break;
 
@@ -627,7 +633,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
 
     Log_d(TAG, "Succesful initialized socket framework");
 
-    if((connectSocket = Socket_createSocket()) == -1)
+    if((connectSocket = Socket_createSocketTCP()) == -1)
     {
         Log_e(TAG, "Failed init network");
         return;
@@ -642,7 +648,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
         PUT_SLEEP(10); // waitime to initialize server
     }
 
-    if(!Socket_connectSocket(connectSocket, &clientAddr))
+    if(!Socket_connectSocketTCP(connectSocket, &clientAddr))
     {
         Log_e(TAG,"Failed connect server\n");
         return;
@@ -650,7 +656,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
     Log_i(TAG, "Succesfuly connected to server");
 
     // Sending login request
-    if(Socket_sendFullPacket(connectSocket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t)))
+    if(Socket_sendFullPacketTCP(connectSocket, (const char*) &settings->loginSettings, sizeof(LoginRequestPacket_t)))
     {
         Log_i(TAG,"Successfuly sent Login request");
     }else
@@ -661,7 +667,7 @@ static void playInServer_(const GameSettingsHandle_t settings)
     }
 
     // listening login response
-    if(Socket_readFullPacket(connectSocket, loginResponseBuffer, sizeof(loginResponseBuffer)))
+    if(Socket_readFullPacketTCP(connectSocket, loginResponseBuffer, sizeof(loginResponseBuffer)))
     {
 
         Protocol_decapLoginResponse(&loginResponse, loginResponseBuffer);
