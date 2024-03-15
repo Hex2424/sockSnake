@@ -4,11 +4,11 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
+#include "networking.h"
 #include <unistd.h>
-#include "../server/server.h"
-#include "../logger/logger.h"
-#include "../utils/crc32.h"
+#include "server.h"
+#include "logger.h"
+#include "crc32.h"
 //**********************
 // CONST VARIABLES
 
@@ -685,6 +685,58 @@ static void playInServer_(const GameSettingsHandle_t settings)
     {
         Socket_close(connectSocket);
     }
+
+    Socket_t udp;
+    SockAddr_t multicastAddr;
+    struct ip_mreq multicastReq;
+        // Create a UDP socket
+    if ((udp = Socket_createSocketUDP()) == -1) {
+        Log_e(TAG, "Create multicast joiner udp error");
+        exit(EXIT_FAILURE);
+    }
+
+    // Set up the multicast group address structure
+    memset(&multicastAddr, 0, sizeof(multicastAddr));
+    multicastAddr.sin_family = AF_INET;
+    multicastAddr.sin_addr.s_addr = htonl(INADDR_ANY); // Use any available interface
+    multicastAddr.sin_port = htons(12345);
+
+    
+    // Bind the socket to the multicast address
+    if (!Socket_bind(udp, &multicastAddr)) {
+        Log_e(TAG, "Multicast bind error");
+        Socket_close(udp);
+        exit(EXIT_FAILURE);
+    }
+
+    // Specify the multicast group to join
+    multicastReq.imr_multiaddr.s_addr = inet_addr("239.0.0.1"); // Example multicast group address
+    multicastReq.imr_interface.s_addr = htonl(INADDR_ANY); // Use any available interface
+
+    // Join the multicast group
+    if (setsockopt(udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *)&multicastReq, sizeof(multicastReq)) == -1) {
+        Log_e(TAG, "Multicast group joining opt error");
+        Socket_close(udp);
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive messages indefinitely
+    while (1) {
+
+        char* buffer[1000];
+        ssize_t numBytes = recv(udp, buffer, sizeof(buffer), 0);
+        if (numBytes == -1) {
+            Log_e(TAG, "Error failed recv");
+            Socket_close(udp);
+            exit(EXIT_FAILURE);
+        } else {
+            buffer[numBytes] = '\0'; // Null-terminate the received data
+            Log_d(TAG, "Received message: %s\n", buffer);
+        }
+    }
+
+    // Close the socket (unreachable code in this example)
+    Socket_close(udp);
 
 
     return;
