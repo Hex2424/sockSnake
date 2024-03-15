@@ -24,7 +24,7 @@ bool Socket_init(void)
     return true;
 }
 
-Socket_t Socket_createSocket(void)
+Socket_t Socket_createSocketTCP(void)
 {
     Socket_t initedSocket;
     #if defined(WINDOWS)
@@ -41,7 +41,25 @@ Socket_t Socket_createSocket(void)
     return initedSocket;
 }
 
-bool Socket_bind(const Socket_t socket, const SockAddrHandle_t sockAddr)
+Socket_t Socket_createSocketUDP(void)
+{
+    Socket_t initedSocket;
+    #if defined(WINDOWS)
+        initedSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if(initedSocket == INVALID_SOCKET)
+        {
+            initedSocket = -1;
+        }
+
+    #elif defined(LINUX)
+        initedSocket = socket(AF_INET, SOCK_DGRAM, 0);
+    #endif
+    
+    return initedSocket;
+}
+
+
+bool Socket_bindTCP(const Socket_t socket, const SockAddrHandle_t sockAddr)
 {
     #if defined(WINDOWS)
         return bind(socket, (SOCKADDR *) sockAddr, sizeof(SockAddr_t)) != SOCKET_ERROR;
@@ -50,7 +68,7 @@ bool Socket_bind(const Socket_t socket, const SockAddrHandle_t sockAddr)
     #endif
 }
 
-bool Socket_listen(const Socket_t listenSocket, const int backlogCount)
+bool Socket_listenTCP(const Socket_t listenSocket, const int backlogCount)
 {
     #if defined(WINDOWS)
         return listen(listenSocket, SOMAXCONN) != SOCKET_ERROR;
@@ -59,7 +77,7 @@ bool Socket_listen(const Socket_t listenSocket, const int backlogCount)
     #endif
 }
 
-Socket_t Socket_acceptSocket(const Socket_t sockenForAccepting, const SockAddrHandle_t sockAddr)
+Socket_t Socket_acceptSocketTCP(const Socket_t sockenForAccepting, const SockAddrHandle_t sockAddr)
 {
     Socket_t newSocket;
     #if defined(WINDOWS)
@@ -76,7 +94,7 @@ Socket_t Socket_acceptSocket(const Socket_t sockenForAccepting, const SockAddrHa
 }
 
 
-bool Socket_connectSocket(const Socket_t socket, const SockAddrHandle_t sockAddr)
+bool Socket_connectSocketTCP(const Socket_t socket, const SockAddrHandle_t sockAddr)
 {
     #if defined(WINDOWS)
         return connect(socket, (SOCKADDR *)&sockAddr, sizeof(SockAddr_t)) != SOCKET_ERROR
@@ -88,7 +106,7 @@ bool Socket_connectSocket(const Socket_t socket, const SockAddrHandle_t sockAddr
 
 
 
-bool Socket_sendFullPacket(const Socket_t socket, const void* packetBuffer, const uint8_t packetLength)
+bool Socket_sendFullPacketTCP(const Socket_t socket, const void* packetBuffer, const uint8_t packetLength)
 {
     assert(packetBuffer);
     assert(packetLength > 0);
@@ -97,7 +115,7 @@ bool Socket_sendFullPacket(const Socket_t socket, const void* packetBuffer, cons
 
 }
 
-bool Socket_readFullPacket(const Socket_t socket, char* packetBuffer, const uint8_t packetLength)
+bool Socket_readFullPacketTCP(const Socket_t socket, char* packetBuffer, const uint8_t packetLength)
 {
     char* packetBufferEnd;
 
