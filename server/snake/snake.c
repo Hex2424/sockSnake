@@ -7,6 +7,10 @@
 #include <string.h>
 
 static Snake_t* snakes;
+static SockVectors_t* iovects;
+static uint8_t* mainHeader;
+static uint16_t* snakeMetaData;
+
 static SnakeId_t count;
 
 #define SIGN(value) (((value) > 0) - ((value) < 0))
@@ -18,14 +22,20 @@ static void snakeMoveTail_(Snake_t* snake);
 static inline void directionToIncrementor_(const Direction_e direction, BendCursor_t xIncr, BendCursor_t yIncr);
 static inline const Direction_t incrementorToDirecton_(const BendCursor_t xIncr, const BendCursor_t yIncr);
 static inline const BendCursor_t snakeGetBendOffset_(const Snake_t* snake, const BendCursor_t cursor, const uint8_t offset);
-static void* bufferizeSnakeIntoBuffer_(const Snake_t* snake, void* bufferPosPtr, const uint16_t freeSpaceAvailable);
+static SockVectors_t* bufferizeSnakeIntoBuffer_(const Snake_t* snake, SockVectors_t* vectorsArray);
 
 bool SnakeNest_init(const uint8_t snakeCount)
 {
     // Allocating memory for snakes
     count = snakeCount;
+    
     snakes = malloc(sizeof(Snake_t) * count);
-    if(snakes == NULL)
+    iovects = malloc(((sizeof(SockVectors_t) * 2) * count) + sizeof(SockVectors_t));
+
+    mainHeader = malloc((sizeof(uint16_t) * count) + sizeof(uint8_t));
+
+
+    if(snakes == NULL || iovects == NULL || mainHeader == NULL)
     {
         return false;
     }else
@@ -258,59 +268,62 @@ static inline const BendCursor_t snakeGetBendOffset_(const Snake_t* snake, const
     }
 }
 
-
-static const uint8_t bufferizeSnakesData_(void* buffer, const uint16_t bufferSize)
+// TODO: make more architecture friendly, move to socket logic
+// TODO: optimization, so that it already writes directly to SOCKVECTORS
+uint16_t SnakeNest_bufferizePosData(void)
 {
-    void* lastCoppiedPtr;
+    SockVectors_t* lastiovec;
 
-    lastCoppiedPtr = buffer;
+    lastiovec = iovects;
 
-    
+    *mainHeader = count;
+    snakeMetaData = (uint16_t*) (mainHeader + sizeof(uint8_t));
+
+    lastiovec->iov_base = mainHeader;
+    lastiovec->iov_len = (sizeof(uint16_t) * count) + sizeof(uint8_t);
+
+    lastiovec++;
     // TODO: do something to do less memcpy
 
     for(SnakeId_t snakeId = 0; snakeId < count; snakeId++)
     {
-        lastCoppiedPtr = bufferizeSnakeIntoBuffer_(&snakes[snakeId], lastCoppiedPtr, );
-
+        lastiovec = bufferizeSnakeIntoBuffer_(&snakes[snakeId], lastiovec);
     }
+
+    return (lastiovec - iovects);
 }
 
-static void* bufferizeSnakeIntoBuffer_(const Snake_t* snake, void* bufferPosPtr, const uint16_t freeSpaceAvailable)
+SockVectors_t* SnakeNest_getSockVectors(void)
+{
+    return iovects;
+}
+
+static SockVectors_t* bufferizeSnakeIntoBuffer_(const Snake_t* snake, SockVectors_t* vectorsArray)
 {
     // Checking if ring buffer is divided to two parts
     const BendCursor_t headTopCursor = snakeGetBendOffset_(snake, snake->head, 2);
-    
+
     if(snake->tail < headTopCursor)
     {
         const uint16_t tailToHeadLength = (headTopCursor - snake->tail);
-        const uint16_t predictedSpaceConsumption = tailToHeadLength + sizeof(uint16_t);
+        *snakeMetaData = tailToHeadLength; 
 
-        if(predictedSpaceConsumption <= freeSpaceAvailable)
-        {
-            ((uint8_t*)bufferPosPtr)[0] = tailToHeadLength & 0xFF;
-            ((uint8_t*)bufferPosPtr)[1] = tailToHeadLength >> 8;
-            bufferPosPtr = mempcpy(bufferPosPtr, snake->tail, predictedSpaceConsumption);
-        }else 
-        {
-            bufferPosPtr = NULL;
-        }
-
+        vectorsArray->iov_base = snake->tail;
+        vectorsArray->iov_len = tailToHeadLength;
+        vectorsArray++;
     }else
     {
         const uint16_t tailToBufferEndLength = (snake->bends + sizeof(snake->bends)) - snake->tail;
         const uint16_t bufferStartToHeadLength = (headTopCursor - snake->bends);
-        const uint16_t predictedSpaceConsumption = tailToBufferEndLength + bufferStartToHeadLength;
 
-        if(predictedSpaceConsumption <= freeSpaceAvailable)
-        {
-            bufferPosPtr = mempcpy(bufferPosPtr, snake->tail, tailToBufferEndLength); // Copying first fragment
-            bufferPosPtr = mempcpy(bufferPosPtr, snake->bends, bufferStartToHeadLength); // copying last fragment
-        }else
-        {
-            bufferPosPtr = NULL;
-        }
+        vectorsArray->iov_base = snake->tail;
+        vectorsArray->iov_len = tailToBufferEndLength;
+        vectorsArray++;
 
+        vectorsArray->iov_base = (void*) snake->bends;
+        vectorsArray->iov_len = bufferStartToHeadLength;
+        vectorsArray++;
     }
 
-    return bufferPosPtr;
+    return vectorsArray;
 }

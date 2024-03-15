@@ -2,8 +2,9 @@
 #define SNAKE
 #include <stdint.h>
 #include <stdbool.h>
+#include "../../networking/networking.h"
 
-#define MAX_ALLOWED_SNAKE_BENDS 504
+#define MAX_ALLOWED_SNAKE_BENDS 248
 #define DIRECTION_OFFSET        -2
 
 typedef int8_t Metric_t;
@@ -27,13 +28,14 @@ typedef struct
    BendCursor_t head;
    BendCursor_t tail;
    Direction_t direction;
-   bool isStartX;
 }Snake_t;
 
-typedef struct
-{
-    
-}SnakeSocketData_t;
+uint16_t SnakeNest_bufferizePosData(void);
+SockVectors_t* SnakeNest_getSockVectors(void);
+bool SnakeNest_snakesTickUpdate(void);
+void SnakeNest_snakeChangeDirection(const SnakeId_t snakeId, const Direction_t direction);
+void SnakeNest_createSnakes(const uint8_t arenaWidth, const uint8_t arenaHeight);
+bool SnakeNest_init(const uint8_t snakeCount);
 
 #endif
 
