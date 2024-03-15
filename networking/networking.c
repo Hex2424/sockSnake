@@ -35,7 +35,7 @@ Socket_t Socket_createSocketTCP(void)
         }
 
     #elif defined(LINUX)
-        initedSocket = socket(AF_INET, SOCK_STREAM, 0);
+        initedSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     #endif
     
     return initedSocket;
@@ -45,21 +45,21 @@ Socket_t Socket_createSocketUDP(void)
 {
     Socket_t initedSocket;
     #if defined(WINDOWS)
-        initedSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        initedSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         if(initedSocket == INVALID_SOCKET)
         {
             initedSocket = -1;
         }
 
     #elif defined(LINUX)
-        initedSocket = socket(AF_INET, SOCK_DGRAM, 0);
+        initedSocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     #endif
     
     return initedSocket;
 }
 
 
-bool Socket_bindTCP(const Socket_t socket, const SockAddrHandle_t sockAddr)
+bool Socket_bind(const Socket_t socket, const SockAddrHandle_t sockAddr)
 {
     #if defined(WINDOWS)
         return bind(socket, (SOCKADDR *) sockAddr, sizeof(SockAddr_t)) != SOCKET_ERROR;
@@ -113,6 +113,21 @@ bool Socket_sendFullPacketTCP(const Socket_t socket, const void* packetBuffer, c
 
     return send(socket, packetBuffer, packetLength, 0);
 
+}
+
+bool Socket_getRemoteIP(const Socket_t socket, SockIPv4* ip)
+{
+    SockAddr_t tempAddr;
+    socklen_t addrLen = sizeof(SockAddr_t);
+    bool status;
+    #if defined(WINDOWS)
+
+    #elif defined(LINUX)
+        status = (getpeername(socket, (struct sockaddr *) &tempAddr, &addrLen) != -1);
+        *ip = tempAddr.sin_addr;
+    #endif
+
+    return status;
 }
 
 bool Socket_readFullPacketTCP(const Socket_t socket, char* packetBuffer, const uint8_t packetLength)
