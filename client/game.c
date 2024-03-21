@@ -28,6 +28,8 @@
 #define FLAG_RIGHT          3
 #define FLAG_UP             4
 
+#define INITIAL_SNAKE_SIZE  3
+
 #define GAME_SPEED          100
 #define GAME_FPS            16
 #define NETWORK_SPEED       10
@@ -77,14 +79,16 @@ const static char* TAG = "CLIENT";
 
 static void handleBlockPainting_();
 static Snake_t* addBodySnake_(const Snake_t* snake,const Point_t* newPoint);
-static void paintArena_();
 static void paintBorders_(WINDOW* window);
 static void paintSnake_();
 static void paintFood_();
 // static void paintEnemySnake_();
 static void clearScreen_();
 static void generateNewPos_(Point_t* oldPoint);
-static void initGame_();
+static void initArena_();
+static void updateState_(const uint8_t* data);
+static void updateSnakes_(const uint8_t* data);
+static const uint8_t* updateSnake_(const uint8_t* snakeData);
 static void gameLoop_();
 static bool isEating_();
 static void handleEat_();
@@ -94,7 +98,8 @@ static void handleMovement_();
 static void gameOver_();
 static void playSinglePlayer_();
 static void transformSnake_();
-static ThreadRet_t paintingThread_(void* data);
+static void renderLineBetweenPos_(const uint8_t p1, const uint8_t p2, const uint8_t pConnected, const bool isChangedX);
+// static ThreadRet_t paintingThread_(void* data);
 // static void flushBufferPrint_();
 // static ThreadRet_t networkReadLoop_();
 static void closeThreads_();
@@ -220,8 +225,8 @@ static void processMenuWithSelection_(void)
 
 static void gameLoop_()
 {
-    CREATE_THREAD(paintThread, paintingThread_, NULL);
-    CREATE_THREAD(eventsThread, handleInput_, NULL);
+    // CREATE_THREAD(paintThread, paintingThread_, NULL);
+    // CREATE_THREAD(eventsThread, handleInput_, NULL);
 
     // if(isOnline)
     // {
@@ -240,26 +245,17 @@ static void gameLoop_()
     }
 }
 
-static ThreadRet_t paintingThread_(void* data) 
+// static ThreadRet_t paintingThread_(void* data) 
+// {
+//     while(isGameRunning)
+//     {
+//         paintArena_();
+//         PUT_SLEEP(GAME_FPS);
+//     }
+// }
+
+static void initArena_()
 {
-    while(isGameRunning)
-    {
-        paintArena_();
-        PUT_SLEEP(GAME_FPS);
-    }
-}
-
-static void initGame_()
-{
-    srand(time(NULL));
-    generateNewPos_(&foodPos);
-
-    isGameRunning = true;
-    snake = malloc(sizeof(Snake_t));
-
-    generateNewPos_(&snake[0].point);
-    snake->snake = NULL;
-
     initscr();
     noecho();
     curs_set(0);
@@ -281,16 +277,16 @@ static void exitGame_()
     exit(0);
 }
 
-static void paintArena_()
-{
+// static void paintArena_()
+// {
     
-    // clearScreen_();
+//     // clearScreen_();
 
-    handleBlockPainting_();
-    wrefresh(arena);
-    werase(arena);
-    // flushBufferPrint_();
-}
+//     handleBlockPainting_();
+//     wrefresh(arena);
+//     werase(arena);
+//     // flushBufferPrint_();
+// }
 
 
 static void handleBlockPainting_()
@@ -709,29 +705,34 @@ static void playInServer_(const GameSettingsHandle_t settings)
         exit(EXIT_FAILURE);
     }
 
-    // Specify the multicast group to join
-    multicastReq.imr_multiaddr.s_addr = inet_addr("239.0.0.1"); // Example multicast group address
-    multicastReq.imr_interface.s_addr = htonl(INADDR_ANY); // Use any available interface
+    // // Specify the multicast group to join
+    // multicastReq.imr_multiaddr.s_addr = inet_addr("239.0.0.1"); // Example multicast group address
+    // multicastReq.imr_interface.s_addr = htonl(INADDR_ANY); // Use any available interface
 
-    // Join the multicast group
-    if (setsockopt(udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *)&multicastReq, sizeof(multicastReq)) == -1) {
-        Log_e(TAG, "Multicast group joining opt error");
-        Socket_close(udp);
-        exit(EXIT_FAILURE);
-    }
+    // // Join the multicast group
+    // if (setsockopt(udp, IPPROTO_IP, IP_ADD_MEMBERSHIP, (void *)&multicastReq, sizeof(multicastReq)) == -1) {
+    //     Log_e(TAG, "Multicast group joining opt error");
+    //     Socket_close(udp);
+    //     exit(EXIT_FAILURE);
+    // }
 
     // Receive messages indefinitely
+    initArena_();
+
     while (1) {
 
-        char* buffer[1000];
-        ssize_t numBytes = recv(udp, buffer, sizeof(buffer), 0);
-        if (numBytes == -1) {
+        uint8_t buffer[1000];
+        size_t numBytes = recv(udp, buffer, sizeof(buffer), 0);
+    
+        if (numBytes == -1) 
+        {
             Log_e(TAG, "Error failed recv");
             Socket_close(udp);
             exit(EXIT_FAILURE);
-        } else {
-            buffer[numBytes] = '\0'; // Null-terminate the received data
-            Log_d(TAG, "Received message: %s\n", buffer);
+        } 
+        else 
+        {
+            updateState_(buffer);
         }
     }
 
@@ -741,6 +742,89 @@ static void playInServer_(const GameSettingsHandle_t settings)
 
     return;
 }
+
+static void updateState_(const uint8_t* data)
+{
+    updateSnakes_(data);
+    wrefresh(arena);
+}
+
+static void updateSnakes_(const uint8_t* data)
+{
+    const uint8_t snakesCount = data[0];
+    uint8_t* currentDataCursor = (uint8_t*) &data[1];
+
+    for(uint8_t snakeIndex = 0; snakeIndex < snakesCount; snakeIndex++)
+    {
+        currentDataCursor = (uint8_t*) updateSnake_(currentDataCursor);
+    }
+    
+}
+
+
+
+static const uint8_t* updateSnake_(const uint8_t* snakeData)
+{
+    uint16_t snakeSize;
+    // uint8_t lastDisplayX = snakeData[2];
+    uint8_t lastPos = snakeData[3];
+
+    const bool startingX = true;
+    snakeSize = ntohs(*((uint16_t*) &snakeData[0]));
+
+    for(uint8_t bodyIdx = 0; bodyIdx < (snakeSize - 1); bodyIdx++)
+    {
+        const metric_t pos1 = snakeData[bodyIdx + 2];
+        const metric_t pos2 = snakeData[bodyIdx + 3];
+        const bool isXPos = ((bodyIdx % 2) == startingX);
+        
+        renderLineBetweenPos_(lastPos, pos2, pos1, isXPos);
+        lastPos = pos1;
+    }
+
+    return &snakeData[snakeSize + 1];
+}    
+
+    // (1, 2)
+    // (3, 2)
+    // (3, 4)
+    // 0 1 2
+    // {0,3}
+    // (0 1) y
+    // (2 1) xas
+
+    // (0, 1) -> (0, 1)
+    // (0, 1) -> (1, 1) -> (2, 1)
+
+
+
+static void renderLineBetweenPos_(const uint8_t p1, const uint8_t p2, const uint8_t pConnected, const bool isChangedX)
+{
+    uint8_t toVar;
+    uint8_t renderIdx;
+
+    if(p1 < p2)
+    {
+        renderIdx = p1;
+        toVar = (p2 + 1);
+    }else
+    {
+        renderIdx = p2;
+        toVar = (p1 + 1); 
+    }
+
+    for(; renderIdx < toVar; renderIdx++)
+    {
+        if(isChangedX)
+        {
+            mvwaddch(arena, pConnected, renderIdx, CHAR_SNAKE);   
+        }else
+        {
+            mvwaddch(arena, renderIdx, pConnected, CHAR_SNAKE);   
+        }
+    }
+}
+
 
 
 static ThreadRet_t runServer(void* args)
