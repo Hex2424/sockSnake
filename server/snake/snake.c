@@ -14,7 +14,7 @@ static uint16_t* snakeMetaData;
 static SnakeId_t count;
 
 #define SIGN(value) (((value) > 0) - ((value) < 0))
-
+#define SNAKE_METADATA_SIZE(snakeCount) ((sizeof(uint16_t) * count) + sizeof(uint8_t))
 
 static inline void snakeMove_(const SnakeId_t snakeId);
 static void snakeMoveHead_(const Snake_t* snake);
@@ -32,7 +32,8 @@ bool SnakeNest_init(const uint8_t snakeCount)
     snakes = malloc(sizeof(Snake_t) * count);
     iovects = malloc(((sizeof(SockVectors_t) * 2) * count) + sizeof(SockVectors_t));
 
-    mainHeader = malloc((sizeof(uint16_t) * count) + sizeof(uint8_t));
+    // SnakeMetadata(n) * snake_count + sizeof(header)
+    mainHeader = malloc(SNAKE_METADATA_SIZE(count));
 
 
     if(snakes == NULL || iovects == NULL || mainHeader == NULL)
@@ -59,18 +60,19 @@ void SnakeNest_createSnakes(const uint8_t arenaWidth, const uint8_t arenaHeight)
 
         snake = &snakes[snakeId];
 
-        x = rand() % arenaWidth - (arenaWidth / 2);
-        y = rand() % arenaHeight - (arenaHeight / 2);
+        x = 0;
+        y = 1;
 
         snake->tail = snake->bends; // tail at first position firstly
         snake->head = snake->tail;
-
+        
         // initial is x, y, y + 1 which is (x, y) -> (x, y + 1) 
         snakes[snakeId].bends[0] = x; 
         snakes[snakeId].bends[1] = y;
         snakes[snakeId].bends[2] = (y + 1);
     }
 }
+
 
 void SnakeNest_snakeChangeDirection(const SnakeId_t snakeId, const Direction_t direction)
 {
@@ -257,7 +259,7 @@ static inline const BendCursor_t snakeGetBendOffset_(const Snake_t* snake, const
 {
     const BendCursor_t overflowCursor = (const BendCursor_t) (snake->bends + sizeof(snake->bends));
     const BendCursor_t comparisonCursor = &cursor[offset];
-    const int16_t overflowedBy = (overflowCursor - comparisonCursor);
+    const int16_t overflowedBy = (((int64_t) comparisonCursor) - (int64_t) overflowCursor);
 
     if(overflowedBy > 0)
     {
@@ -280,7 +282,7 @@ uint16_t SnakeNest_bufferizePosData(void)
     snakeMetaData = (uint16_t*) (mainHeader + sizeof(uint8_t));
 
     lastiovec->iov_base = mainHeader;
-    lastiovec->iov_len = (sizeof(uint16_t) * count) + sizeof(uint8_t);
+    lastiovec->iov_len = SNAKE_METADATA_SIZE(count);
 
     lastiovec++;
     // TODO: do something to do less memcpy
@@ -301,20 +303,23 @@ SockVectors_t* SnakeNest_getSockVectors(void)
 static SockVectors_t* bufferizeSnakeIntoBuffer_(const Snake_t* snake, SockVectors_t* vectorsArray)
 {
     // Checking if ring buffer is divided to two parts
-    const BendCursor_t headTopCursor = snakeGetBendOffset_(snake, snake->head, 2);
+    const BendCursor_t headTopCursor = snakeGetBendOffset_(snake, snake->head, 3);
 
     if(snake->tail < headTopCursor)
     {
         const uint16_t tailToHeadLength = (headTopCursor - snake->tail);
-        *snakeMetaData = tailToHeadLength; 
+        *snakeMetaData = htons(tailToHeadLength); 
 
         vectorsArray->iov_base = snake->tail;
         vectorsArray->iov_len = tailToHeadLength;
+
         vectorsArray++;
+        snakeMetaData++;
     }else
     {
         const uint16_t tailToBufferEndLength = (snake->bends + sizeof(snake->bends)) - snake->tail;
         const uint16_t bufferStartToHeadLength = (headTopCursor - snake->bends);
+        *snakeMetaData = htons(tailToBufferEndLength + bufferStartToHeadLength);
 
         vectorsArray->iov_base = snake->tail;
         vectorsArray->iov_len = tailToBufferEndLength;
@@ -323,6 +328,7 @@ static SockVectors_t* bufferizeSnakeIntoBuffer_(const Snake_t* snake, SockVector
         vectorsArray->iov_base = (void*) snake->bends;
         vectorsArray->iov_len = bufferStartToHeadLength;
         vectorsArray++;
+        snakeMetaData++;
     }
 
     return vectorsArray;
