@@ -3,16 +3,16 @@ project("asciisnake" LANGUAGES C)
 
 
 IF (WIN32)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lws2_32")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lws2_32 -g")
   add_compile_definitions(WINDOWS)
 ELSE()
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lncurses")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lncurses -g")
   add_compile_definitions(LINUX)
 ENDIF()
 
-add_compile_definitions(VERBOSE_LEVEL=3)
+add_compile_definitions(VERBOSE_LEVEL=0 LINUX)
 
-set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
 
 include_directories(
   utils
