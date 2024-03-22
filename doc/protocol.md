@@ -15,7 +15,8 @@
 | reserved  | 2             | 2             |                                        |
 | color_id  | 4             | 4             | color id of snake body                 |
 | body_ascii| 8             | 8             | printable character as snake body      |
-
+| arena_w   | 16            | 8             | arena width                            |
+| arena_h   | 24            | 8             | arena height                           |
 
 # Server -> Client configs packet
 
@@ -50,11 +51,13 @@
 | Field       | start bit     | length (bits) | description                            |
 |-----------  | ---------     | ------------- | ------------                           |
 | packet_type | 0             | 2             | type identifying datagram  (0x00)      |
-| reserved    | 2             | 6             | reserved                               |
-_________________________________________________________________________________________
-| snakeb_len  | 8             | 9             | buffer length of one snake body        |
-| starting_x  | 17            | 1             | Tells what is indicating first byte    |
-| reserved    | 18            | 7             | Tells what is indicating first byte    |
+| snake_count | 2             | 6             | snake count in body                    |
+|-----------  | ---------     | ------------- | ------------                           |
+| snake_id    | 0             | 16            | ID identifying specific snake player   |
+| snakeb_len  | 16            | 9             | buffer length of one snake body        |
+| starting_x  | 25            | 1             | Tells what is indicating first byte    |
+| reserved    | 26            | 6             | RESERVED                               |
+|-----------  | ---------     | ------------- | ------------                           |
 | body_buffer | 24            | snakeb_len    | compressed snake body                  |
 | ...         | ...           | ...           | ...                                    |
 
