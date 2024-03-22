@@ -12,6 +12,7 @@ typedef int8_t Direction_t;
 typedef uint8_t SnakeId_t ;
 typedef Metric_t Bend_t;
 typedef Bend_t* BendCursor_t;
+typedef uint32_t SnakeMetaData_t;
 
 typedef enum
 {
